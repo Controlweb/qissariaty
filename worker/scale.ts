@@ -117,6 +117,27 @@ export async function checkRateLimit(
 }
 
 /**
+ * P1 scale: keyset cursor `base64(createdAt:id)`. Offset degrades linearly
+ * (D1 still scans skipped rows); cursor filters on the indexed created_at.
+ */
+export function encodeCursor(createdAt: number, id: string): string {
+  return btoa(`${createdAt}:${id}`);
+}
+
+export function decodeCursor(cursor: string | undefined): { createdAt: number; id: string } | null {
+  if (!cursor) return null;
+  try {
+    const [ts, ...rest] = atob(cursor).split(":");
+    const createdAt = Number(ts);
+    const id = rest.join(":");
+    if (!Number.isFinite(createdAt) || !id) return null;
+    return { createdAt, id };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Verifies a Turnstile token when a secret is configured. Returns true when
  * verification is skipped (no secret — local dev / tests) so callers don't
  * branch. Wire `turnstileToken` through register/login when you enable it in

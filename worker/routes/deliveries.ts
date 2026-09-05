@@ -5,7 +5,11 @@ import { and, eq, isNull, desc } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { deliveries, orders, stores, markets, addresses, users } from "../schema";
 import { requireRole } from "../auth";
-import { delivererLocationSchema, deliveredSchema } from "../../shared/validation";
+import {
+  delivererLocationSchema,
+  deliveredSchema,
+  availableDeliveriesQuerySchema,
+} from "../../shared/validation";
 import { releaseMedia } from "../media-gc";
 import type { AppEnv, QueueEvent } from "../types";
 
@@ -39,7 +43,8 @@ delivery.use("/deliveries/:id/location", requireRole("DELIVERER", "ADMIN"));
  * them a customer's doorstep is not a trade any of those customers agreed to.
  * Both arrive on /deliveries/mine once the run is actually claimed.
  */
-delivery.get("/deliveries/available", async (c) => {
+delivery.get("/deliveries/available", zValidator("query", availableDeliveriesQuerySchema), async (c) => {
+  const { city, limit } = c.req.valid("query");
   const rows = await db(c.env)
     .select({
       id: deliveries.id,
@@ -61,9 +66,15 @@ delivery.get("/deliveries/available", async (c) => {
     .innerJoin(stores, eq(stores.id, orders.storeId))
     .innerJoin(markets, eq(markets.id, stores.marketId))
     .leftJoin(addresses, eq(addresses.id, orders.addressId))
-    .where(and(eq(deliveries.status, "UNASSIGNED"), isNull(deliveries.delivererId)))
+    .where(
+      and(
+        eq(deliveries.status, "UNASSIGNED"),
+        isNull(deliveries.delivererId),
+        city ? eq(markets.city, city) : undefined,
+      ),
+    )
     .orderBy(desc(deliveries.createdAt))
-    .limit(50);
+    .limit(limit);
   return c.json({ deliveries: rows });
 });
 

@@ -67,22 +67,29 @@ export function Checkout() {
     notes: form.notes || undefined,
   });
 
+  // P1 scale: one key per checkout attempt — retries reuse it so a double
+  // tap cannot take stock twice. Regenerated after a real failure.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const placeOrder = useMutation({
     mutationFn: () =>
-      api.checkout({
-        ...(addressId ? { addressId } : { address: address() }),
-        ...(signedIn
-          ? {}
-          : {
-              guest: {
-                name: guest.name,
-                email: guest.email,
-                phone: guest.phone || undefined,
-                password: guest.password || undefined,
-              },
-            }),
-        paymentMethod: pay,
-      }),
+      api.checkout(
+        {
+          ...(addressId ? { addressId } : { address: address() }),
+          ...(signedIn
+            ? {}
+            : {
+                guest: {
+                  name: guest.name,
+                  email: guest.email,
+                  phone: guest.phone || undefined,
+                  password: guest.password || undefined,
+                },
+              }),
+          paymentMethod: pay,
+        },
+        idempotencyKey,
+      ),
+    onError: () => setIdempotencyKey(crypto.randomUUID()),
     onSuccess: ({ order }) => {
       // A guest is signed in by this response, so the session must refresh too.
       qc.invalidateQueries({ queryKey: ["me"] });

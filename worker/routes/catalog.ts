@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { drizzle } from "drizzle-orm/d1";
-import { and, eq, like, like as like_, gte, lte, sql, desc } from "drizzle-orm";
+import { and, eq, like, like as like_, gte, lte, lt, or, sql, desc } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { markets, stores, products, categories } from "../schema";
 import { requireRole } from "../auth";
@@ -14,7 +14,7 @@ import {
   searchSchema,
 } from "../../shared/validation";
 import { releaseMedia } from "../media-gc";
-import { cachedJson } from "../scale";
+import { cachedJson, decodeCursor, encodeCursor } from "../scale";
 import type { AppEnv } from "../types";
 
 export const catalog = new Hono<AppEnv>();
@@ -30,6 +30,7 @@ const mediaUrl = (env: Env, key: string | null) => (key ? `${env.MEDIA_PUBLIC_BA
 catalog.get("/markets/bounds", zValidator("query", boundsSchema), async (c) => {
   const b = c.req.valid("query");
   // P0 scale: map pans hammer this endpoint. Public data, cache 60s at edge.
+  // P1 scale: storeCount is denormalized (triggers in 0006), no per-row subquery.
   return cachedJson(c.req.raw, c, 60, async () => {
     const rows = await db(c.env)
       .select({
@@ -40,12 +41,7 @@ catalog.get("/markets/bounds", zValidator("query", boundsSchema), async (c) => {
         lat: markets.lat,
         lng: markets.lng,
         coverKey: markets.coverKey,
-        // Written out by hand: interpolating `${markets.id}` here renders the
-        // bare identifier "id", which the subquery resolves against `stores`
-        // (which also has an `id`), silently counting zero. Alias the inner
-        // table and qualify the outer column explicitly.
-        // TODO(P1): replace with markets.store_count denormalized column.
-        storeCount: sql<number>`(select count(*) from stores s where s.market_id = markets.id and s.status = 'ACTIVE')`,
+        storeCount: markets.storeCount,
       })
       .from(markets)
       .where(
@@ -66,22 +62,49 @@ catalog.get("/markets/bounds", zValidator("query", boundsSchema), async (c) => {
 });
 
 catalog.get("/markets", zValidator("query", marketQuerySchema), async (c) => {
-  const { city, q, limit, offset } = c.req.valid("query");
-  return cachedJson(c.req.raw, c, 60, async () => {
-    const rows = await db(c.env)
-      .select()
-      .from(markets)
-      .where(
-        and(
-          eq(markets.status, "ACTIVE"),
-          city ? eq(markets.city, city) : undefined,
-          q ? like(markets.name, `%${q}%`) : undefined,
-        ),
-      )
-      .limit(limit)
-      .offset(offset);
+  const { city, q, limit, offset, cursor } = c.req.valid("query");
+  const keyset = decodeCursor(cursor);
+  // Cursor responses are per-position and must not be edge-cached under the
+  // same key as the first page; offset pages keep the 60s cache.
+  if (!keyset) {
+    return cachedJson(c.req.raw, c, 60, async () => {
+      const rows = await db(c.env)
+        .select()
+        .from(markets)
+        .where(
+          and(
+            eq(markets.status, "ACTIVE"),
+            city ? eq(markets.city, city) : undefined,
+            q ? like(markets.name, `%${q}%`) : undefined,
+          ),
+        )
+        .orderBy(desc(markets.createdAt), desc(markets.id))
+        .limit(limit)
+        .offset(offset);
 
-    return { markets: rows.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })) };
+      return { markets: rows.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })) };
+    });
+  }
+  const rows = await db(c.env)
+    .select()
+    .from(markets)
+    .where(
+      and(
+        eq(markets.status, "ACTIVE"),
+        city ? eq(markets.city, city) : undefined,
+        q ? like(markets.name, `%${q}%`) : undefined,
+        or(
+          lt(markets.createdAt, keyset.createdAt),
+          and(eq(markets.createdAt, keyset.createdAt), lt(markets.id, keyset.id)),
+        ),
+      ),
+    )
+    .orderBy(desc(markets.createdAt), desc(markets.id))
+    .limit(limit);
+  const last = rows[rows.length - 1];
+  return c.json({
+    markets: rows.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })),
+    nextCursor: last ? encodeCursor(last.createdAt, last.id) : null,
   });
 });
 
@@ -126,32 +149,96 @@ catalog.get("/products/:id", async (c) => {
 });
 
 /**
- * Cross-entity search backing the design's grouped results page. Three small
- * indexed LIKE queries beat one UNION here: D1 can use each table's own index,
- * and the page renders them as separate sections anyway.
+ * Cross-entity search. P1 scale: FTS5 first (`*_fts` tables from 0006),
+ * LIKE fallback when the FTS query is empty or throws (special chars).
+ * Three small queries beat one UNION: the page renders sections anyway.
  */
+function toFtsQuery(q: string): string | null {
+  const terms = q
+    .split(/\s+/)
+    .map((t) => t.replace(/["*:()^]/g, "").trim())
+    .filter((t) => t.length >= 2)
+    .slice(0, 5);
+  if (!terms.length) return null;
+  return terms.map((t) => `"${t}"*`).join(" OR ");
+}
+
 catalog.get("/search", zValidator("query", searchSchema), async (c) => {
   const { q, limit } = c.req.valid("query");
   const d = db(c.env);
-  const like = `%${q}%`;
+  const fts = toFtsQuery(q);
 
-  const [foundMarkets, foundStores, foundProducts] = await Promise.all([
-    d.select().from(markets).where(and(eq(markets.status, "ACTIVE"), like_(markets.name, like))).limit(limit),
-    d.select().from(stores).where(and(eq(stores.status, "ACTIVE"), like_(stores.name, like))).limit(limit),
-    d
-      .select({
-        id: products.id,
-        name: products.name,
-        priceMinor: products.priceMinor,
-        currency: products.currency,
-        imageKey: products.imageKey,
-        storeName: stores.name,
-      })
-      .from(products)
-      .innerJoin(stores, eq(stores.id, products.storeId))
-      .where(and(eq(products.status, "ACTIVE"), like_(products.name, like)))
-      .limit(limit),
-  ]);
+  const runFts = async () => {
+    if (!fts) throw new Error("no fts terms");
+    return Promise.all([
+      d
+        .select()
+        .from(markets)
+        .where(
+          and(
+            eq(markets.status, "ACTIVE"),
+            sql`id IN (SELECT id FROM markets_fts WHERE markets_fts MATCH ${fts})`,
+          ),
+        )
+        .limit(limit),
+      d
+        .select()
+        .from(stores)
+        .where(
+          and(
+            eq(stores.status, "ACTIVE"),
+            sql`id IN (SELECT id FROM stores_fts WHERE stores_fts MATCH ${fts})`,
+          ),
+        )
+        .limit(limit),
+      d
+        .select({
+          id: products.id,
+          name: products.name,
+          priceMinor: products.priceMinor,
+          currency: products.currency,
+          imageKey: products.imageKey,
+          storeName: stores.name,
+        })
+        .from(products)
+        .innerJoin(stores, eq(stores.id, products.storeId))
+        .where(
+          and(
+            eq(products.status, "ACTIVE"),
+            sql`products.id IN (SELECT id FROM products_fts WHERE products_fts MATCH ${fts})`,
+          ),
+        )
+        .limit(limit),
+    ]);
+  };
+
+  const runLike = async () => {
+    const like = `%${q}%`;
+    return Promise.all([
+      d.select().from(markets).where(and(eq(markets.status, "ACTIVE"), like_(markets.name, like))).limit(limit),
+      d.select().from(stores).where(and(eq(stores.status, "ACTIVE"), like_(stores.name, like))).limit(limit),
+      d
+        .select({
+          id: products.id,
+          name: products.name,
+          priceMinor: products.priceMinor,
+          currency: products.currency,
+          imageKey: products.imageKey,
+          storeName: stores.name,
+        })
+        .from(products)
+        .innerJoin(stores, eq(stores.id, products.storeId))
+        .where(and(eq(products.status, "ACTIVE"), like_(products.name, like)))
+        .limit(limit),
+    ]);
+  };
+
+  let foundMarkets, foundStores, foundProducts;
+  try {
+    [foundMarkets, foundStores, foundProducts] = await runFts();
+  } catch {
+    [foundMarkets, foundStores, foundProducts] = await runLike();
+  }
 
   return c.json({
     markets: foundMarkets.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })),

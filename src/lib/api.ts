@@ -17,8 +17,11 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     credentials: "same-origin",
-    headers: init?.body ? { "content-type": "application/json" } : undefined,
     ...init,
+    headers: {
+      ...(init?.body ? { "content-type": "application/json" } : undefined),
+      ...(init?.headers as Record<string, string> | undefined),
+    },
   });
 
   if (!res.ok) {
@@ -273,12 +276,20 @@ export const api = {
 
   orders: () => get<{ orders: Order[] }>("/orders"),
   order: (id: string) => get<{ order: Order; items: { id: string; name: string; qty: number; unitPriceMinor: number }[] }>(`/orders/${id}`),
-  checkout: (body: {
-    addressId?: string;
-    address?: Record<string, unknown>;
-    guest?: { name: string; email: string; phone?: string; password?: string };
-    paymentMethod?: "COD" | "CARD";
-  }) => post<{ order: Order }>("/orders", { paymentMethod: "COD", ...body }),
+  checkout: (
+    body: {
+      addressId?: string;
+      address?: Record<string, unknown>;
+      guest?: { name: string; email: string; phone?: string; password?: string };
+      paymentMethod?: "COD" | "CARD";
+    },
+    idempotencyKey?: string,
+  ) =>
+    request<{ order: Order; deduped?: boolean }>("/orders", {
+      method: "POST",
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      body: JSON.stringify({ paymentMethod: "COD", ...body }),
+    }),
 
   variants: (productId: string) =>
     get<{ options: ProductOption[]; variants: ProductVariant[] }>(`/products/${productId}/variants`),
@@ -352,14 +363,17 @@ export const api = {
     post<{ ok: true }>(`/admin/users/${id}/status`, { status }),
   adminMarkets: () => get<{ markets: AdminMarket[] }>("/admin/markets"),
 
-  availableDeliveries: () => get<{ deliveries: AvailableDelivery[] }>("/deliveries/available"),
+  availableDeliveries: (city?: string) =>
+    get<{ deliveries: AvailableDelivery[] }>(
+      `/deliveries/available${city ? `?city=${encodeURIComponent(city)}` : ""}`,
+    ),
   myDeliveries: () => get<{ deliveries: MyDelivery[] }>("/deliveries/mine"),
   acceptDelivery: (id: string) => post<{ delivery: Delivery }>(`/deliveries/${id}/accept`),
   markPickedUp: (id: string) => post<{ ok: true }>(`/deliveries/${id}/picked-up`),
   markDelivered: (id: string, proofKey?: string | null) =>
     post<{ ok: true }>(`/deliveries/${id}/delivered`, { proofKey: proofKey ?? undefined }),
   pingLocation: (id: string, lat: number, lng: number) =>
-    post<{ ok: true }>(`/deliveries/${id}/location`, { lat, lng }),
+    post<{ ok: true; throttled?: boolean }>(`/deliveries/${id}/location`, { lat, lng }),
 };
 
 /** 4900 -> "49,00 MAD". Formatting lives here so no component reinvents it. */

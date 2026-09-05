@@ -280,6 +280,7 @@ commerce.post("/addresses", zValidator("json", addressSchema), async (c) => {
 commerce.post("/orders", zValidator("json", createOrderSchema), async (c) => {
   const input = c.req.valid("json");
   const d = db(c.env);
+  const rawKey = c.req.header("Idempotency-Key")?.trim().slice(0, 64) || null;
   const cart = await getCart(c);
   const lines = await cartLines(c.env, cart.id);
 
@@ -294,6 +295,17 @@ commerce.post("/orders", zValidator("json", createOrderSchema), async (c) => {
     await d.update(carts).set({ userId: user.id }).where(eq(carts.id, cart.id));
     deleteCookie(c, GUEST_COOKIE, { path: "/" });
     await startSession(c, user.id);
+  }
+
+  // P1 scale: safe retries. A double tap / network retry reuses the same
+  // Idempotency-Key and gets the original order instead of taking stock twice.
+  if (rawKey) {
+    const [existing] = await d
+      .select()
+      .from(orders)
+      .where(and(eq(orders.idempotencyKey, rawKey), eq(orders.customerId, user.id)))
+      .limit(1);
+    if (existing) return c.json({ order: existing, deduped: true });
   }
 
   if (!lines.length) throw new HTTPException(400, { message: "cart is empty" });
@@ -377,8 +389,20 @@ commerce.post("/orders", zValidator("json", createOrderSchema), async (c) => {
       deliveryFeeMinor,
       totalMinor: subtotalMinor + deliveryFeeMinor,
       paymentMethod: input.paymentMethod,
+      idempotencyKey: rawKey,
     })
-    .returning();
+    .returning()
+    .catch(async (err) => {
+      // Lost race between two retries with the same key: read the winner.
+      if (!rawKey) throw err;
+      const [winner] = await d
+        .select()
+        .from(orders)
+        .where(and(eq(orders.idempotencyKey, rawKey), eq(orders.customerId, user.id)))
+        .limit(1);
+      if (winner) return [winner];
+      throw err;
+    });
 
   await d.batch([
     d.insert(orderItems).values(

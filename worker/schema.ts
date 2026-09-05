@@ -81,6 +81,12 @@ export const markets = sqliteTable(
     status: text("status", { enum: ["ACTIVE", "HIDDEN"] })
       .notNull()
       .default("ACTIVE"),
+    /**
+     * P1 scale: denormalized count of ACTIVE stores. Replaces the per-row
+     * `(select count(*) ...)` subquery in catalog bounds/admin lists, which is
+     * O(N) subqueries. Maintained by SQLite triggers (see 0006 migration).
+     */
+    storeCount: integer("store_count").notNull().default(0),
     createdAt: createdAt(),
   },
   // Bounding-box queries filter lat then lng — one composite index serves both.
@@ -261,6 +267,13 @@ export const orders = sqliteTable(
     paymentStatus: text("payment_status", { enum: ["UNPAID", "PAID", "REFUNDED"] })
       .notNull()
       .default("UNPAID"),
+    /**
+     * P1 scale: client-supplied `Idempotency-Key` header. Retries and double
+     * taps reuse the same key, so a retried checkout returns the original
+     * order instead of charging stock twice. Globally unique, nullable so
+     * old rows and key-less checkouts keep working.
+     */
+    idempotencyKey: text("idempotency_key").unique(),
     createdAt: createdAt(),
   },
   (t) => [

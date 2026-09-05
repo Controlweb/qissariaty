@@ -299,7 +299,7 @@ manage.get("/admin/markets", async (c) => {
       lng: markets.lng,
       status: markets.status,
       coverKey: markets.coverKey,
-      storeCount: sql<number>`(select count(*) from stores s where s.market_id = markets.id)`,
+      storeCount: markets.storeCount,
     })
     .from(markets)
     .orderBy(desc(markets.createdAt));

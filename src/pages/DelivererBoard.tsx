@@ -105,10 +105,13 @@ function Leg({
 
 export function DelivererBoard() {
   const qc = useQueryClient();
+  // P1 scale: filter the shared job board by city so couriers don't all poll
+  // the same global 50 runs.
+  const [city, setCity] = useState("");
 
   const available = useQuery({
-    queryKey: ["deliveries", "available"],
-    queryFn: api.availableDeliveries,
+    queryKey: ["deliveries", "available", city || "all"],
+    queryFn: () => api.availableDeliveries(city || undefined),
     // The job board is a competition — poll it rather than waiting for a reload.
     refetchInterval: 15_000,
   });
@@ -142,6 +145,13 @@ export function DelivererBoard() {
       <div data-cols style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "start" }}>
         <section>
           <h3 style={{ margin: "0 0 14px" }}>Courses disponibles</h3>
+          <input
+            className="input"
+            placeholder="Filtrer par ville…"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            style={{ marginBottom: 12, maxWidth: 280 }}
+          />
           {accept.isError && (
             <p style={{ color: "var(--color-accent-700)", fontSize: 14 }}>{accept.error.message}</p>
           )}

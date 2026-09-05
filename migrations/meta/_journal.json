@@ -36,6 +36,13 @@
       "when": 1788577377567,
       "tag": "0004_foamy_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788577463680,
+      "tag": "0005_first_wild_pack",
+      "breakpoints": true
     }
   ]
 }
