@@ -44,7 +44,7 @@ export const sessions = sqliteTable(
     expiresAt: integer("expires_at").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index("sessions_user_idx").on(t.userId)],
+  (t) => [index("sessions_user_idx").on(t.userId), index("sessions_expires_idx").on(t.expiresAt)],
 );
 
 export const addresses = sqliteTable(
@@ -198,7 +198,7 @@ export const carts = sqliteTable(
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     createdAt: createdAt(),
   },
-  (t) => [index("carts_user_idx").on(t.userId)],
+  (t) => [index("carts_user_idx").on(t.userId), index("carts_created_idx").on(t.createdAt)],
 );
 
 export const cartItems = sqliteTable(
@@ -311,6 +311,7 @@ export const deliveries = sqliteTable(
   (t) => [
     uniqueIndex("deliveries_order_idx").on(t.orderId),
     index("deliveries_deliverer_idx").on(t.delivererId, t.status),
+    index("deliveries_status_idx").on(t.status),
   ],
 );
 
@@ -404,5 +405,8 @@ export const passwordResets = sqliteTable(
     usedAt: integer("used_at"),
     createdAt: createdAt(),
   },
-  (t) => [index("password_resets_user_idx").on(t.userId)],
+  (t) => [
+    index("password_resets_user_idx").on(t.userId),
+    index("password_resets_expires_idx").on(t.expiresAt),
+  ],
 );

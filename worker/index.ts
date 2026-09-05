@@ -10,6 +10,7 @@ import { media } from "./routes/media";
 import { manage } from "./routes/manage";
 import { extras } from "./routes/reviews";
 import { onboarding } from "./routes/onboarding";
+import { runCleanup } from "./scale";
 import type { AppEnv, QueueEvent } from "./types";
 
 export { DeliveryRoom } from "./delivery-room";
@@ -43,6 +44,20 @@ app.notFound((c) => c.json({ error: "not found" }, 404));
 
 export default {
   fetch: app.fetch,
+
+  /**
+   * Daily hygiene (Cron Trigger `0 3 * * *` in wrangler.jsonc): expired
+   * sessions, orphan guest carts, spent reset tokens. Without this the auth
+   * join in withUser slows down for everyone as the tables grow.
+   */
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      runCleanup(env).then(
+        (r) => console.log("cleanup", r),
+        (err) => console.error("cleanup failed", err),
+      ),
+    );
+  },
 
   /**
    * Everything that must happen after an order but not during it: store and

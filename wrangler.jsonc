@@ -49,6 +49,10 @@
     { "tag": "v1", "new_sqlite_classes": ["DeliveryRoom"] }
   ],
 
+  // Daily hygiene for sessions / guest carts / reset tokens — see
+  // runCleanup() in worker/scale.ts and scheduled() in worker/index.ts.
+  "triggers": { "crons": ["0 3 * * *"] },
+
   // Custom domain. The preview-web.site zone IS active on Cloudflare
   // (nameservers keaton/selah.ns.cloudflare.com, zone 83efb84e…) — the previous
   // note here saying it was pending was out of date. Email Routing is enabled

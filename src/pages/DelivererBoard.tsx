@@ -1,7 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, money } from "../lib/api";
 import { ImageUpload } from "../components/ImageUpload";
+
+/**
+ * P0 scale: reports the courier's position for the active run, throttled to
+ * one ping per 5s client-side (the DO also throttles broadcasts to 1/3s
+ * server-side). No watch = no battery drain when nothing is active.
+ */
+function useLocationPing(deliveryId: string | undefined) {
+  const lastRef = useRef(0);
+  useEffect(() => {
+    if (!deliveryId || !("geolocation" in navigator)) return;
+    const watch = navigator.geolocation.watchPosition(
+      (pos) => {
+        const now = Date.now();
+        if (now - lastRef.current < 5000) return;
+        lastRef.current = now;
+        api.pingLocation(deliveryId, pos.coords.latitude, pos.coords.longitude).catch(() => {});
+      },
+      () => {},
+      { enableHighAccuracy: false, maximumAge: 10_000, timeout: 10_000 },
+    );
+    return () => navigator.geolocation.clearWatch(watch);
+  }, [deliveryId]);
+}
 
 const STATUS_LABEL: Record<string, string> = {
   UNASSIGNED: "Disponible",
@@ -90,6 +113,8 @@ export function DelivererBoard() {
     refetchInterval: 15_000,
   });
   const mine = useQuery({ queryKey: ["deliveries", "mine"], queryFn: api.myDeliveries });
+  const activeId = mine.data?.deliveries.find((d) => d.status === "ASSIGNED" || d.status === "PICKED_UP")?.id;
+  useLocationPing(activeId);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["deliveries"] });

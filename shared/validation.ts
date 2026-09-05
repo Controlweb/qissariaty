@@ -50,11 +50,15 @@ export const registerSchema = z.object({
     .regex(/^\+?[0-9\s-]{8,20}$/, "invalid phone")
     .optional(),
   role: Role.exclude(["ADMIN"]).default("CUSTOMER"),
+  // Cloudflare Turnstile token. Optional until the client sends one; verified
+  // server-side only when TURNSTILE_SECRET_KEY is configured.
+  turnstileToken: z.string().max(2000).optional(),
 });
 
 export const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(1).max(200),
+  turnstileToken: z.string().max(2000).optional(),
 });
 
 /**

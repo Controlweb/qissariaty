@@ -187,6 +187,7 @@ delivery.post(
 delivery.post("/deliveries/:id/location", zValidator("json", delivererLocationSchema), async (c) => {
   const row = await assertAssigned(c, c.req.param("id"));
   const { lat, lng, heading } = c.req.valid("json");
-  await room(c.env, row.id).publishLocation(lat, lng, heading);
-  return c.json({ ok: true });
+  const { throttled } = await room(c.env, row.id).publishLocation(lat, lng, heading);
+  // 200 even when throttled: the client should back off, not retry harder.
+  return c.json({ ok: true, throttled });
 });

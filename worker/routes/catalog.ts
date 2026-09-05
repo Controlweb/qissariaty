@@ -14,6 +14,7 @@ import {
   searchSchema,
 } from "../../shared/validation";
 import { releaseMedia } from "../media-gc";
+import { cachedJson } from "../scale";
 import type { AppEnv } from "../types";
 
 export const catalog = new Hono<AppEnv>();
@@ -28,60 +29,68 @@ const mediaUrl = (env: Env, key: string | null) => (key ? `${env.MEDIA_PUBLIC_BA
  */
 catalog.get("/markets/bounds", zValidator("query", boundsSchema), async (c) => {
   const b = c.req.valid("query");
-  const rows = await db(c.env)
-    .select({
-      id: markets.id,
-      slug: markets.slug,
-      name: markets.name,
-      city: markets.city,
-      lat: markets.lat,
-      lng: markets.lng,
-      coverKey: markets.coverKey,
-      // Written out by hand: interpolating `${markets.id}` here renders the
-      // bare identifier "id", which the subquery resolves against `stores`
-      // (which also has an `id`), silently counting zero. Alias the inner
-      // table and qualify the outer column explicitly.
-      storeCount: sql<number>`(select count(*) from stores s where s.market_id = markets.id and s.status = 'ACTIVE')`,
-    })
-    .from(markets)
-    .where(
-      and(
-        eq(markets.status, "ACTIVE"),
-        gte(markets.lat, b.south),
-        lte(markets.lat, b.north),
-        gte(markets.lng, b.west),
-        lte(markets.lng, b.east),
-      ),
-    )
-    .limit(b.limit);
+  // P0 scale: map pans hammer this endpoint. Public data, cache 60s at edge.
+  return cachedJson(c.req.raw, c, 60, async () => {
+    const rows = await db(c.env)
+      .select({
+        id: markets.id,
+        slug: markets.slug,
+        name: markets.name,
+        city: markets.city,
+        lat: markets.lat,
+        lng: markets.lng,
+        coverKey: markets.coverKey,
+        // Written out by hand: interpolating `${markets.id}` here renders the
+        // bare identifier "id", which the subquery resolves against `stores`
+        // (which also has an `id`), silently counting zero. Alias the inner
+        // table and qualify the outer column explicitly.
+        // TODO(P1): replace with markets.store_count denormalized column.
+        storeCount: sql<number>`(select count(*) from stores s where s.market_id = markets.id and s.status = 'ACTIVE')`,
+      })
+      .from(markets)
+      .where(
+        and(
+          eq(markets.status, "ACTIVE"),
+          gte(markets.lat, b.south),
+          lte(markets.lat, b.north),
+          gte(markets.lng, b.west),
+          lte(markets.lng, b.east),
+        ),
+      )
+      .limit(b.limit);
 
-  return c.json({
-    markets: rows.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })),
+    return {
+      markets: rows.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })),
+    };
   });
 });
 
 catalog.get("/markets", zValidator("query", marketQuerySchema), async (c) => {
   const { city, q, limit, offset } = c.req.valid("query");
-  const rows = await db(c.env)
-    .select()
-    .from(markets)
-    .where(
-      and(
-        eq(markets.status, "ACTIVE"),
-        city ? eq(markets.city, city) : undefined,
-        q ? like(markets.name, `%${q}%`) : undefined,
-      ),
-    )
-    .limit(limit)
-    .offset(offset);
+  return cachedJson(c.req.raw, c, 60, async () => {
+    const rows = await db(c.env)
+      .select()
+      .from(markets)
+      .where(
+        and(
+          eq(markets.status, "ACTIVE"),
+          city ? eq(markets.city, city) : undefined,
+          q ? like(markets.name, `%${q}%`) : undefined,
+        ),
+      )
+      .limit(limit)
+      .offset(offset);
 
-  return c.json({ markets: rows.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })) });
+    return { markets: rows.map((m) => ({ ...m, coverUrl: mediaUrl(c.env, m.coverKey) })) };
+  });
 });
 
 catalog.get("/markets/:id", async (c) => {
-  const [market] = await db(c.env).select().from(markets).where(eq(markets.id, c.req.param("id")));
-  if (!market) throw new HTTPException(404, { message: "market not found" });
-  return c.json({ market: { ...market, coverUrl: mediaUrl(c.env, market.coverKey) } });
+  return cachedJson(c.req.raw, c, 60, async () => {
+    const [market] = await db(c.env).select().from(markets).where(eq(markets.id, c.req.param("id")));
+    if (!market) throw new HTTPException(404, { message: "market not found" });
+    return { market: { ...market, coverUrl: mediaUrl(c.env, market.coverKey) } };
+  });
 });
 
 catalog.get("/markets/:id/stores", async (c) => {
@@ -99,13 +108,15 @@ catalog.get("/stores/:id", async (c) => {
 });
 
 catalog.get("/stores/:id/products", async (c) => {
-  const rows = await db(c.env)
-    .select()
-    .from(products)
-    .where(and(eq(products.storeId, c.req.param("id")), eq(products.status, "ACTIVE")))
-    .orderBy(desc(products.createdAt))
-    .limit(100);
-  return c.json({ products: rows.map((p) => ({ ...p, imageUrl: mediaUrl(c.env, p.imageKey) })) });
+  return cachedJson(c.req.raw, c, 60, async () => {
+    const rows = await db(c.env)
+      .select()
+      .from(products)
+      .where(and(eq(products.storeId, c.req.param("id")), eq(products.status, "ACTIVE")))
+      .orderBy(desc(products.createdAt))
+      .limit(100);
+    return { products: rows.map((p) => ({ ...p, imageUrl: mediaUrl(c.env, p.imageKey) })) };
+  });
 });
 
 catalog.get("/products/:id", async (c) => {
@@ -150,7 +161,11 @@ catalog.get("/search", zValidator("query", searchSchema), async (c) => {
   });
 });
 
-catalog.get("/categories", async (c) => c.json({ categories: await db(c.env).select().from(categories) }));
+catalog.get("/categories", async (c) =>
+  cachedJson(c.req.raw, c, 300, async () => ({
+    categories: await db(c.env).select().from(categories),
+  })),
+);
 
 // ---------------------------------------------------------------- store owner
 

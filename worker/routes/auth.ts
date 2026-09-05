@@ -12,6 +12,7 @@ import {
   passwordSetSchema,
   passwordResetSchema,
 } from "../../shared/validation";
+import { checkRateLimit, verifyTurnstile } from "../scale";
 import type { AppEnv } from "../types";
 
 export const auth = new Hono<AppEnv>();
@@ -38,6 +39,13 @@ const publicUser = (u: {
 
 auth.post("/register", zValidator("json", registerSchema), async (c) => {
   const input = c.req.valid("json");
+  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  if ((await checkRateLimit(c.env, `register:${ip}`)).limited) {
+    throw new HTTPException(429, { message: "too many attempts, try again later" });
+  }
+  if (!(await verifyTurnstile(c.env, input.turnstileToken))) {
+    throw new HTTPException(403, { message: "captcha verification failed" });
+  }
   const d = db(c.env);
 
   const [existing] = await d.select({ id: users.id }).from(users).where(eq(users.email, input.email));
@@ -64,7 +72,14 @@ auth.post("/register", zValidator("json", registerSchema), async (c) => {
 });
 
 auth.post("/login", zValidator("json", loginSchema), async (c) => {
-  const { email, password } = c.req.valid("json");
+  const { email, password, turnstileToken } = c.req.valid("json");
+  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  if ((await checkRateLimit(c.env, `login:${ip}`)).limited) {
+    throw new HTTPException(429, { message: "too many attempts, try again later" });
+  }
+  if (!(await verifyTurnstile(c.env, turnstileToken))) {
+    throw new HTTPException(403, { message: "captcha verification failed" });
+  }
   const [user] = await db(c.env).select().from(users).where(eq(users.email, email)).limit(1);
 
   // Same response for unknown email and wrong password: do not confirm which
