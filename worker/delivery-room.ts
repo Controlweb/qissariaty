@@ -37,13 +37,13 @@ export class DeliveryRoom extends DurableObject<Env> {
    *
    * P0 scale guard: GPS pings are high-frequency. The location is always
    * stored (cheap, superseded), but broadcasts to watchers are throttled to
-   * one per 3s so a chatty client cannot fan out into a WS flood.
+   * 1 per 15s so a chatty client cannot fan out into a WS flood.
    */
   async publishLocation(lat: number, lng: number, heading?: number): Promise<{ throttled: boolean }> {
     const now = Date.now();
     const last = (await this.ctx.storage.get<number>("lastBroadcastAt")) ?? 0;
     await this.ctx.storage.put("location", { lat, lng });
-    if (now - last < 3000) return { throttled: true };
+    if (now - last < 15_000) return { throttled: true };
     await this.ctx.storage.put("lastBroadcastAt", now);
     this.broadcast({ type: "location", lat, lng, heading, at: now });
     return { throttled: false };
