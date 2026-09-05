@@ -5,7 +5,7 @@ import { ImageUpload } from "../components/ImageUpload";
 
 /**
  * P0 scale: reports the courier's position for the active run, throttled to
- * one ping per 5s client-side (the DO also throttles broadcasts to 1/3s
+ * 1 ping per 15s client-side (the DO also throttles broadcasts to 1/3s
  * server-side). No watch = no battery drain when nothing is active.
  */
 function useLocationPing(deliveryId: string | undefined) {
@@ -15,12 +15,12 @@ function useLocationPing(deliveryId: string | undefined) {
     const watch = navigator.geolocation.watchPosition(
       (pos) => {
         const now = Date.now();
-        if (now - lastRef.current < 5000) return;
+        if (now - lastRef.current < 15_000) return;
         lastRef.current = now;
         api.pingLocation(deliveryId, pos.coords.latitude, pos.coords.longitude).catch(() => {});
       },
       () => {},
-      { enableHighAccuracy: false, maximumAge: 10_000, timeout: 10_000 },
+      { enableHighAccuracy: false, maximumAge: 15_000, timeout: 10_000 },
     );
     return () => navigator.geolocation.clearWatch(watch);
   }, [deliveryId]);
