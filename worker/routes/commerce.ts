@@ -353,23 +353,28 @@ commerce.post("/orders", zValidator("json", createOrderSchema), async (c) => {
   );
   const taken = results.map((r: any) => (r?.meta?.changes ?? r?.rowsAffected ?? 0) > 0);
 
+  // Best-effort undo for guarded decrements. Used both when a line loses the
+  // stock race and when a retried checkout loses the idempotency race after
+  // taking stock — without it the loser would burn stock with no order.
+  const compensate = async (ls: typeof lines) => {
+    if (!ls.length) return;
+    await d.batch(
+      ls.map((l) =>
+        l.variantId
+          ? d
+              .update(productVariants)
+              .set({ stock: sql`${productVariants.stock} + ${l.qty}` })
+              .where(eq(productVariants.id, l.variantId))
+          : d
+              .update(products)
+              .set({ stock: sql`${products.stock} + ${l.qty}` })
+              .where(eq(products.id, l.productId)),
+      ) as [any, ...any[]],
+    );
+  };
+
   if (taken.some((ok) => !ok)) {
-    const restore = lines.filter((_, i) => taken[i]);
-    if (restore.length) {
-      await d.batch(
-        restore.map((l) =>
-          l.variantId
-            ? d
-                .update(productVariants)
-                .set({ stock: sql`${productVariants.stock} + ${l.qty}` })
-                .where(eq(productVariants.id, l.variantId))
-            : d
-                .update(products)
-                .set({ stock: sql`${products.stock} + ${l.qty}` })
-                .where(eq(products.id, l.productId)),
-        ) as [any, ...any[]],
-      );
-    }
+    await compensate(lines.filter((_, i) => taken[i]));
     const short = lines.filter((_, i) => !taken[i]).map((l) => l.name);
     throw new HTTPException(409, { message: `out of stock: ${short.join(", ")}` });
   }
@@ -378,31 +383,40 @@ commerce.post("/orders", zValidator("json", createOrderSchema), async (c) => {
   const deliveryFeeMinor = 1500; // 15.00 MAD flat — replace with a zone table later.
   const ref = `Q${Date.now().toString(36).toUpperCase()}`;
 
-  const [order] = await d
-    .insert(orders)
-    .values({
-      ref,
-      customerId: user.id,
-      storeId,
-      addressId: address.id,
-      subtotalMinor,
-      deliveryFeeMinor,
-      totalMinor: subtotalMinor + deliveryFeeMinor,
-      paymentMethod: input.paymentMethod,
-      idempotencyKey: rawKey,
-    })
-    .returning()
-    .catch(async (err) => {
-      // Lost race between two retries with the same key: read the winner.
-      if (!rawKey) throw err;
-      const [winner] = await d
-        .select()
-        .from(orders)
-        .where(and(eq(orders.idempotencyKey, rawKey), eq(orders.customerId, user.id)))
-        .limit(1);
-      if (winner) return [winner];
-      throw err;
-    });
+  let order;
+  try {
+    [order] = await d
+      .insert(orders)
+      .values({
+        ref,
+        customerId: user.id,
+        storeId,
+        addressId: address.id,
+        subtotalMinor,
+        deliveryFeeMinor,
+        totalMinor: subtotalMinor + deliveryFeeMinor,
+        paymentMethod: input.paymentMethod,
+        idempotencyKey: rawKey,
+      })
+      .returning();
+  } catch (err) {
+    // Lost race between two retries sharing one key (double tap, network
+    // retry): this attempt already took stock above, so give it back before
+    // returning the winner — and return early, never writing order items,
+    // a second delivery, or an empty cart for an order that already exists.
+    // The lookup stays scoped to this customer, matching the pre-check and
+    // the UNIQUE(customer_id, idempotency_key) constraint: another
+    // customer's key can never collide here.
+    if (!rawKey) throw err;
+    const [winner] = await d
+      .select()
+      .from(orders)
+      .where(and(eq(orders.idempotencyKey, rawKey), eq(orders.customerId, user.id)))
+      .limit(1);
+    if (!winner) throw err;
+    await compensate(lines);
+    return c.json({ order: winner, deduped: true });
+  }
 
   await d.batch([
     d.insert(orderItems).values(

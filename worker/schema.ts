@@ -270,15 +270,19 @@ export const orders = sqliteTable(
     /**
      * P1 scale: client-supplied `Idempotency-Key` header. Retries and double
      * taps reuse the same key, so a retried checkout returns the original
-     * order instead of charging stock twice. Globally unique, nullable so
-     * old rows and key-less checkouts keep working.
+     * order instead of taking stock twice. Scoped UNIQUE per customer
+     * (Stripe-style): one customer's retry must never collide with another
+     * customer's key, and a globally-unique key would turn a cross-customer
+     * collision into a 500 with stock taken and no order created.
+     * Nullable so old rows and key-less checkouts keep working.
      */
-    idempotencyKey: text("idempotency_key").unique(),
+    idempotencyKey: text("idempotency_key"),
     createdAt: createdAt(),
   },
   (t) => [
     index("orders_customer_idx").on(t.customerId),
     index("orders_store_idx").on(t.storeId, t.status),
+    uniqueIndex("orders_customer_idempotency_idx").on(t.customerId, t.idempotencyKey),
   ],
 );
 

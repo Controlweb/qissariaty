@@ -43,6 +43,13 @@
       "when": 1788577463680,
       "tag": "0005_first_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788629552545,
+      "tag": "0006_wonderful_tomas",
+      "breakpoints": true
     }
   ]
 }
