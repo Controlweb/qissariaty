@@ -96,11 +96,23 @@ export function Checkout() {
       qc.invalidateQueries({ queryKey: ["cart"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
       setOrderRef(order.ref);
+      // Snapshot the totals: the cart is emptied by this same response, so the
+      // confirmation step must not read them back from the cart query (0,00).
+      setPlacedOrder({
+        subtotalMinor: order.subtotalMinor,
+        deliveryFeeMinor: order.deliveryFeeMinor,
+        totalMinor: order.totalMinor,
+      });
       setAccountCreated(!signedIn);
       setStep(2);
     },
   });
   const [orderRef, setOrderRef] = useState("");
+  const [placedOrder, setPlacedOrder] = useState<{
+    subtotalMinor: number;
+    deliveryFeeMinor: number;
+    totalMinor: number;
+  } | null>(null);
   const [accountCreated, setAccountCreated] = useState(false);
 
   return (
@@ -388,11 +400,17 @@ export function Checkout() {
             }}
           >
             <span style={{ opacity: 0.7 }}>Sous-total</span>
-            <span>{money(subtotalMinor)}</span>
+            <span>{money(placedOrder?.subtotalMinor ?? subtotalMinor)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
             <span style={{ opacity: 0.7 }}>Livraison</span>
-            <span>{lines.length ? money(DELIVERY_FEE_MINOR) : "—"}</span>
+            <span>
+              {placedOrder
+                ? money(placedOrder.deliveryFeeMinor)
+                : lines.length
+                  ? money(DELIVERY_FEE_MINOR)
+                  : "—"}
+            </span>
           </div>
           <div
             style={{
@@ -403,7 +421,7 @@ export function Checkout() {
             }}
           >
             <span>Total</span>
-            <span>{money(totalMinor)}</span>
+            <span>{money(placedOrder?.totalMinor ?? totalMinor)}</span>
           </div>
         </div>
       </div>
