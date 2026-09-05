@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/d1";
 import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
-import { carts, passwordResets, sessions } from "./schema";
+import { carts, deliveries, markets, orders, passwordResets, sessions, stores } from "./schema";
 
 // ---------------------------------------------------------------------------
 // Scheduled cleanup (Cron Trigger).
@@ -42,10 +42,58 @@ export async function runCleanup(env: Env): Promise<{
     .where(or(lt(passwordResets.expiresAt, now), sql`${passwordResets.usedAt} IS NOT NULL`))
     .returning({ id: passwordResets.id });
 
-  // eq import is kept for callers that build on this module; carts.userId null
-  // check above uses isNull explicitly.
   void eq;
   return { sessions: expiredSessions.length, carts: staleCarts.length, resets: staleResets.length };
+}
+
+/**
+ * P2 scale: reconciliation for dual-writes.
+ *
+ * Order/delivery status is written in two statements plus a DO publish plus a
+ * queue send — none of it atomic. At scale a crashed request leaves drift
+ * (order IN_TRANSIT but delivery UNASSIGNED, or counts off). This runs after
+ * cleanup in the same cron: it logs drift for the operator and repairs the
+ * one thing safe to repair automatically (markets.store_count).
+ */
+export async function runReconciliation(env: Env): Promise<{
+  driftedDeliveries: number;
+  repairedMarkets: number;
+}> {
+  const d = drizzle(env.DB);
+
+  // Deliveries claimed but order never moved, or delivered on one side only.
+  // Read-only check, capped so the cron stays cheap.
+  const drift = await d
+    .select({ deliveryId: deliveries.id, dStatus: deliveries.status, oStatus: orders.status })
+    .from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId))
+    .where(
+      or(
+        and(eq(deliveries.status, "ASSIGNED"), eq(orders.status, "PENDING")),
+        and(eq(deliveries.status, "DELIVERED"), sql`${orders.status} != 'DELIVERED'`),
+        and(eq(orders.status, "DELIVERED"), sql`${deliveries.status} != 'DELIVERED'`),
+      ),
+    )
+    .limit(100);
+  if (drift.length) console.error("reconciliation drift", drift);
+
+  // Repair denormalized counters (triggers cover new writes; this catches
+  // pre-trigger rows and manual SQL).
+  const stale = await d
+    .select({
+      id: markets.id,
+      stored: markets.storeCount,
+      actual: sql<number>`(select count(*) from stores s where s.market_id = markets.id and s.status = 'ACTIVE')`,
+    })
+    .from(markets)
+    .where(sql`store_count != (select count(*) from stores s where s.market_id = markets.id and s.status = 'ACTIVE')`)
+    .limit(200);
+  for (const m of stale) {
+    await d.update(markets).set({ storeCount: m.actual }).where(eq(markets.id, m.id));
+  }
+  void stores;
+
+  return { driftedDeliveries: drift.length, repairedMarkets: stale.length };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,10 +1,10 @@
+import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, type SessionUser } from "./lib/api";
 import { Header } from "./components/Header";
 import { TabBar, useIsMobile } from "./components/TabBar";
 import { Home } from "./pages/Home";
-import { MapSplit } from "./pages/MapSplit";
 import { MarketDetail } from "./pages/MarketDetail";
 import { StoreDetail } from "./pages/StoreDetail";
 import { Cart } from "./pages/Cart";
@@ -16,9 +16,17 @@ import { ResetPassword } from "./pages/ResetPassword";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { Search } from "./pages/Search";
 import { ProductDetail } from "./pages/ProductDetail";
-import { Admin } from "./pages/Admin";
-import { StoreDashboard } from "./pages/StoreDashboard";
-import { DelivererBoard } from "./pages/DelivererBoard";
+
+// P2 scale: Leaflet + dashboards are heavy and rarely visited on first load.
+// Split them so the core funnel (home/cart/checkout) stays lean.
+const MapSplit = lazy(() => import("./pages/MapSplit").then((m) => ({ default: m.MapSplit })));
+const Admin = lazy(() => import("./pages/Admin").then((m) => ({ default: m.Admin })));
+const StoreDashboard = lazy(() =>
+  import("./pages/StoreDashboard").then((m) => ({ default: m.StoreDashboard })),
+);
+const DelivererBoard = lazy(() =>
+  import("./pages/DelivererBoard").then((m) => ({ default: m.DelivererBoard })),
+);
 
 export function useSession() {
   return useQuery({ queryKey: ["me"], queryFn: api.me, staleTime: 5 * 60_000 });
@@ -53,6 +61,7 @@ export function App() {
       }}
     >
       <Header />
+      <Suspense fallback={null}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/carte" element={<MapSplit />} />
@@ -113,6 +122,7 @@ export function App() {
           }
         />
       </Routes>
+      </Suspense>
       {isMobile && <TabBar />}
     </div>
   );

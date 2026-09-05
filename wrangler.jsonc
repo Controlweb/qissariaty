@@ -65,6 +65,13 @@
   // the admin-issued reset link. See README.
   "send_email": [{ "name": "EMAIL" }],
 
+  // Optional abuse backstop (P0/P1): Workers Rate Limiting binding. Uncomment
+  // after `wrangler ratelimit create` (Paid plan). Code in worker/scale.ts
+  // fails open when absent so dev/tests work without it. Dashboard Rate Limit
+  // rules + Turnstile (TURNSTILE_SECRET_KEY via `wrangler secret put`) are the
+  // primary defense; this is the in-code second layer.
+  // "ratelimits": [{ "name": "RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }],
+
   "vars": {
     "APP_ENV": "production",
     // Must be an address on a domain onboarded to Cloudflare Email Service.

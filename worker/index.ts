@@ -10,7 +10,7 @@ import { media } from "./routes/media";
 import { manage } from "./routes/manage";
 import { extras } from "./routes/reviews";
 import { onboarding } from "./routes/onboarding";
-import { runCleanup } from "./scale";
+import { runCleanup, runReconciliation } from "./scale";
 import type { AppEnv, QueueEvent } from "./types";
 
 export { DeliveryRoom } from "./delivery-room";
@@ -52,10 +52,18 @@ export default {
    */
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(
-      runCleanup(env).then(
-        (r) => console.log("cleanup", r),
-        (err) => console.error("cleanup failed", err),
-      ),
+      (async () => {
+        try {
+          console.log("cleanup", await runCleanup(env));
+        } catch (err) {
+          console.error("cleanup failed", err);
+        }
+        try {
+          console.log("reconciliation", await runReconciliation(env));
+        } catch (err) {
+          console.error("reconciliation failed", err);
+        }
+      })(),
     );
   },
 

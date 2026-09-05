@@ -217,5 +217,39 @@ the confirmation screen always offers the human fallback.
   count, so raising it is a compatible change.
 - **`MEDIA_PUBLIC_BASE` is `/api/media`**, so images are served by the Worker.
   Point it at an R2 custom domain to make image reads bypass the Worker.
-- **Search is `LIKE '%term%'`.** Fine at this size; it cannot use an index and
-  will need FTS5 once the catalogue grows.
+- **Search is FTS5 first, `LIKE` fallback** (`worker/routes/catalog.ts`,
+  migration `0006`). FTS handles prefix + diacritics; weird queries fall back
+  rather than 500ing.
+
+## Scale on Cloudflare (P0 → P2 shipped)
+
+- **Cron `0 3 * * *`** (`wrangler.jsonc:triggers`, `worker/scale.ts`):
+  `runCleanup` deletes expired sessions, orphan guest carts (30d) and spent
+  reset tokens; `runReconciliation` logs order/delivery drift and repairs
+  `markets.store_count`. Watch `cleanup` / `reconciliation` logs.
+- **Catalog edge cache** (`worker/scale.ts:cachedJson`): `/markets/bounds`,
+  `/markets`, `/markets/:id`, `/stores/:id/products`, `/categories` cache
+  60–300s in `caches.default`. Authenticated routes never cache.
+- **Location throttle**: client pings max 1/5s (`DelivererBoard.tsx`), DO
+  broadcasts max 1/3s (`delivery-room.ts:publishLocation` returns
+  `{ throttled }`). Pings stay in DO storage, never D1.
+- **Abuse**: dashboard Rate Limit + WAF on `/api/auth/*`, `/api/orders`,
+  `/api/search`, `/api/media/*` (preferred). In-code `RATE_LIMITER` backstop
+  (`worker/scale.ts:checkRateLimit`, fails open) + optional Turnstile:
+  `wrangler secret put TURNSTILE_SECRET_KEY`, client sends `turnstileToken`.
+- **D1**: indexes on `sessions.expires_at`, `deliveries.status`,
+  `carts.created_at`, `password_resets.expires_at` (0004);
+  `markets.store_count` denormalized via triggers + backfill (0005–0006);
+  `/markets` supports `?cursor=base64(createdAt:id)` keyset pagination;
+  checkout takes `Idempotency-Key` (stored `orders.idempotency_key UNIQUE`,
+  double tap returns `{ deduped: true }`).
+- **Deliveries**: `/deliveries/available?city=` filters by souk city
+  (`markets.city` index) so couriers don't all poll one global 50.
+- **R2**: set `MEDIA_PUBLIC_BASE=https://media.preview-web.site` after adding
+  the R2 custom domain; reads then skip the Worker entirely. Keep immutable
+  `cache-control` from `media.ts`.
+- **Frontend**: `MapSplit`, `Admin`, `StoreDashboard`, `DelivererBoard` are
+  `React.lazy` (`App.tsx`) so Leaflet/dashboards don't bloat first paint.
+- **Still manual (Cloudflare dashboard)**: Workers Paid plan (Email sending,
+  higher CPU), Email Sending domain onboarding (SPF/DKIM/DMARC), DLQ depth
+  alert, `preview` env + separate D1 before load tests.
