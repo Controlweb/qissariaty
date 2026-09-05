@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProductOption, ProductVariant } from "../lib/api";
 
 const chip = (state: "on" | "off" | "dead"): React.CSSProperties => ({
@@ -42,12 +42,17 @@ export function VariantPicker({
     return matches(picked)[0] ?? null;
   }, [picked, variants, options]);
 
-  // Report upward whenever the resolved variant changes.
-  const [reported, setReported] = useState<string | null>(null);
-  if ((selected?.id ?? null) !== reported) {
-    setReported(selected?.id ?? null);
-    onChange(selected);
-  }
+  // Report upward after render, never during it: setState-in-render both
+  // warns in dev and can tear concurrent renders. The ref guard keeps the
+  // exact old semantics — one onChange per resolved-variant change.
+  const reported = useRef<string | null>(null);
+  useEffect(() => {
+    const id = selected?.id ?? null;
+    if (reported.current !== id) {
+      reported.current = id;
+      onChange(selected);
+    }
+  });
 
   const availability = (axis: string, value: string) => {
     // Hold the other axes fixed and ask whether anything in stock remains.
