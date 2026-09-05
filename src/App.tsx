@@ -118,6 +118,14 @@ export function App() {
             <main style={{ maxWidth: 1280, margin: "0 auto", padding: "72px 40px" }}>
               <h1>Page introuvable</h1>
               <p className="text-muted">Cette page n'existe pas ou a été déplacée.</p>
+              <p style={{ display: "flex", gap: 12, marginTop: 24 }}>
+                <a className="btn btn-primary" href="/">
+                  Retour à l'accueil
+                </a>
+                <a className="btn btn-secondary" href="/carte">
+                  Explorer la carte
+                </a>
+              </p>
             </main>
           }
         />
