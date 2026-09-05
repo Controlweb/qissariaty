@@ -116,7 +116,9 @@ export async function cachedJson<T>(
   const cache = (caches as unknown as { default: Cache }).default;
   const cacheKey = new Request(req.url, { method: "GET" });
   const hit = await cache.match(cacheKey).catch(() => undefined);
-  if (hit) return hit;
+  // A cached Response has immutable headers — downstream middleware
+  // (secureHeaders) must be able to set headers, so hand back a fresh copy.
+  if (hit) return new Response(hit.body, hit);
 
   const data = await producer();
   const res = Response.json(data, {

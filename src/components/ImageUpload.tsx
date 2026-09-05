@@ -41,6 +41,7 @@ export function ImageUpload({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OptimizedImage | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   // An object URL is a live reference to a decoded blob; leaking one per pick
   // keeps whole images alive for the life of the page.
@@ -52,6 +53,7 @@ export function ImageUpload({
     abort.current?.abort();
     abort.current = new AbortController();
 
+    setFileName(file.name);
     setError(null);
     setPhase("optimizing");
     setRatio(0);
@@ -92,6 +94,7 @@ export function ImageUpload({
 
   function clear() {
     abort.current?.abort();
+    setFileName(null);
     setResult(null);
     setPhase("idle");
     setRatio(0);
@@ -133,6 +136,8 @@ export function ImageUpload({
           </div>
         )}
 
+        {/* Native control stays hidden: the design system has no file-input
+            styling, so a .btn opens it and the name renders as plain text. */}
         <input
           id={`upload-${prefix}`}
           ref={input}
@@ -143,8 +148,22 @@ export function ImageUpload({
             const file = e.target.files?.[0];
             if (file) void pick(file);
           }}
-          style={{ fontSize: 13 }}
+          hidden
         />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ fontSize: 13 }}
+            disabled={!supported || busy}
+            onClick={() => input.current?.click()}
+          >
+            Choisir une image
+          </button>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>
+            {fileName ?? "Aucun fichier choisi"}
+          </span>
+        </div>
 
         {busy && (
           <div>
