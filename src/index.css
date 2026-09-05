@@ -1,0 +1,155 @@
+@import "./organic.css";
+@import "leaflet/dist/leaflet.css";
+
+/* App-level styles, taken verbatim from the design file's <helmet> block so the
+   React build and the canvas artboard render identically. */
+body {
+  margin: 0;
+  background: var(--color-bg);
+}
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+a {
+  color: var(--color-accent-700);
+}
+a:hover {
+  color: var(--color-accent);
+}
+
+/* Image placeholder. The design ships photography as hatched slots; each one
+   keeps its intended dimensions so swapping in a real R2 image changes nothing
+   about the layout. */
+.ph {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-neutral-200) 0 12px,
+    var(--color-neutral-300) 12px 24px
+  );
+  display: grid;
+  place-items: center;
+  font: 10px/1.4 ui-monospace, Menlo, monospace;
+  letter-spacing: 0.06em;
+  color: var(--color-neutral-700);
+  text-align: center;
+  filter: saturate(0.6) contrast(0.85) brightness(1.05);
+}
+
+.leaflet-container {
+  background: var(--color-neutral-200);
+  font-family: var(--font-body);
+}
+
+.qi-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 14px;
+  color: var(--color-text);
+}
+.qi-link:hover {
+  color: var(--color-accent);
+}
+
+/* Horizontal carousel from the mobile artboard. */
+.hscroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.hscroll::-webkit-scrollbar {
+  display: none;
+}
+.tabbtn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  border: 0;
+  background: none;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+}
+
+/*
+ * Mobile. The desktop artboard and the mobile artboard are the same screens at
+ * two widths, so this collapses the shared layout rather than duplicating any
+ * component: two-column page grids stack, sidebars become full width, and the
+ * bottom tab bar replaces the header's inline nav.
+ */
+@media (max-width: 900px) {
+  main {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+
+  /* Every page/grid split in the design is 2-up on desktop and 1-up here. */
+  [data-cols] {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  /* `1fr` is `minmax(auto, 1fr)`, so a track refuses to shrink below its
+     widest item's min-content — which is how a stacked dashboard still pushed
+     the page sideways after it had collapsed to one column. */
+  [data-cols] > * {
+    min-width: 0;
+  }
+  [data-cols="products"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 14px !important;
+  }
+
+  [data-sticky] {
+    position: static !important;
+  }
+
+  /* Room for the fixed tab bar. */
+  body {
+    padding-bottom: 68px;
+  }
+
+  h1 {
+    font-size: 34px !important;
+    line-height: 1.08;
+  }
+  h2 {
+    font-size: 26px !important;
+  }
+
+  /* Leaflet's credit line would otherwise sit under the fixed tab bar. */
+  .leaflet-control-attribution {
+    margin-bottom: 4px !important;
+    font-size: 9px;
+  }
+
+  /* Rows the desktop lays out side by side. Without wrapping, the action
+     buttons on a market or store header push the page sideways. */
+  [data-row] {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  [data-row] > * {
+    margin-left: 0 !important;
+  }
+
+  /* Hero imagery is sized for a desktop column; unchecked it fills a phone
+     screen entirely and pushes all the content below the fold. */
+  main .ph {
+    max-height: 46vh;
+  }
+
+  /* Touch targets: the mobile artboard uses 44–48px throughout. */
+  .btn {
+    min-height: 44px;
+  }
+  .input {
+    min-height: 44px;
+  }
+}

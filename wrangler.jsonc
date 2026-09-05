@@ -1,0 +1,75 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "qissariaty",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  "assets": {
+    "directory": "./dist/client",
+    // Only /api/* reaches the Worker. Everything else is served by the asset
+    // worker, so unknown paths like /markets/:id fall back to index.html for
+    // client-side routing instead of hitting Hono's JSON 404 — and static
+    // requests never invoke (or bill) the Worker at all.
+    "run_worker_first": ["/api/*"],
+    "not_found_handling": "single-page-application"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "qissariaty",
+      "database_id": "7f5d512c-f6f6-4fb5-8df3-d71fd607b4de",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "qissariaty-media" }
+  ],
+
+  "queues": {
+    "producers": [{ "binding": "EVENTS", "queue": "qissariaty-events" }],
+    "consumers": [
+      {
+        "queue": "qissariaty-events",
+        "max_batch_size": 25,
+        "max_batch_timeout": 10,
+        "max_retries": 3,
+        "dead_letter_queue": "qissariaty-events-dlq"
+      }
+    ]
+  },
+
+  "durable_objects": {
+    "bindings": [{ "name": "DELIVERY", "class_name": "DeliveryRoom" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DeliveryRoom"] }
+  ],
+
+  // Custom domain. The preview-web.site zone IS active on Cloudflare
+  // (nameservers keaton/selah.ns.cloudflare.com, zone 83efb84e…) — the previous
+  // note here saying it was pending was out of date. Email Routing is enabled
+  // on it. Uncomment once you actually want the app served from that hostname.
+  // "routes": [{ "pattern": "preview-web.site", "custom_domain": true }],
+
+  // Outbound transactional email (password resets). Sending to arbitrary
+  // recipients requires a sending domain onboarded to Email Service and the
+  // Workers Paid plan; without those, sends fail and the Worker falls back to
+  // the admin-issued reset link. See README.
+  "send_email": [{ "name": "EMAIL" }],
+
+  "vars": {
+    "APP_ENV": "production",
+    // Must be an address on a domain onboarded to Cloudflare Email Service.
+    "EMAIL_FROM": "no-reply@preview-web.site",
+    "EMAIL_FROM_NAME": "Qissariaty",
+    // Relative on purpose: images are served by the Worker's own /api/media/*
+    // route, so this works on workers.dev and on preview-web.site alike with no
+    // config change. Switch to https://media.preview-web.site once an R2 custom
+    // domain exists, so image reads bypass the Worker entirely.
+    "MEDIA_PUBLIC_BASE": "/api/media"
+  }
+}

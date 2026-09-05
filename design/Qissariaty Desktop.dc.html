@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="stylesheet" href="_ds/organic-44a2e112-c2c1-4b3e-aa86-8b86506afd6a/styles.css"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script><style>body{margin:0;background:var(--color-bg)}button{font-family:var(--font-body);cursor:pointer}a{color:var(--color-accent-700)}a:hover{color:var(--color-accent)}.ph{background:repeating-linear-gradient(135deg,var(--color-neutral-200) 0 12px,var(--color-neutral-300) 12px 24px);display:grid;place-items:center;font:10px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.06em;color:var(--color-neutral-700);text-align:center;filter:saturate(.6) contrast(.85) brightness(1.05)}.leaflet-container{background:var(--color-neutral-200);font-family:var(--font-body)}.qi-link{background:none;border:0;padding:0;font-size:14px;color:var(--color-text)}.qi-link:hover{color:var(--color-accent)}</style></helmet>
+
+<header style="position:sticky;top:0;z-index:600;background:var(--color-bg);box-shadow:0 1px 0 var(--color-divider)">
+  <div style="max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:28px;padding:14px 40px">
+    <button onClick="{{ goHome }}" style="background:none;border:0;padding:0;font-family:var(--font-heading);font-size:21px;color:var(--color-accent-700)">Qissariaty</button>
+    <nav style="display:flex;gap:20px;align-items:center">
+      <button class="qi-link" onClick="{{ goMap }}">Carte</button>
+      <button class="qi-link" onClick="{{ goSearch }}">Marchés</button>
+      <button class="qi-link" onClick="{{ goStore }}">Boutiques</button>
+      <button class="qi-link" onClick="{{ goSearch }}">Catégories</button>
+    </nav>
+    <form onSubmit="{{ onSearchSubmit }}" style="flex:1 1 240px;min-width:200px;max-width:420px;margin-left:auto">
+      <input class="input" placeholder="Rechercher un marché, une boutique, un produit" value="{{ query }}" onChange="{{ onQuery }}">
+    </form>
+    <button class="btn btn-secondary" onClick="{{ toggleCart }}" style="gap:8px;white-space:nowrap;flex:none">Panier · {{ cartCount }}</button>
+    <button class="btn btn-secondary" onClick="{{ goOrder }}" style="white-space:nowrap;flex:none">Compte</button>
+    <button class="btn btn-primary" onClick="{{ goSeller }}" style="white-space:nowrap;flex:none">Vendre sur Qissariaty</button>
+  </div>
+</header>
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<main style="max-width:1280px;margin:0 auto;padding:0 40px 96px">
+  <section style="display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center;padding:72px 0 64px">
+    <div>
+      <p class="card-kicker" style="margin:0 0 18px">Maroc · 6 villes · 4 140 boutiques</p>
+      <h1 style="font-size:64px;max-width:14ch;margin:0 0 22px">Découvrez les marchés. Achetez local.</h1>
+      <p style="font-size:18px;max-width:46ch;opacity:.75;margin:0 0 30px">Des souks de Marrakech aux galeries de Derb Omar : explorez les marchés sur la carte, entrez dans les boutiques, commandez en ligne.</p>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-primary" onClick="{{ goMap }}" style="padding:13px 26px;font-size:15px">Explorer la carte</button>
+        <button class="btn btn-secondary" onClick="{{ goSeller }}" style="padding:13px 26px;font-size:15px">Commencer à vendre</button>
+      </div>
+    </div>
+    <div class="ph" style="height:400px;border-radius:200px 200px 32px 32px">photographie · vue d'un souk<br>1200 × 1400</div>
+  </section>
+
+  <section style="padding:32px 0">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:24px">
+      <h2 style="margin:0">Marchés en vedette</h2>
+      <button class="btn btn-ghost" onClick="{{ goMap }}">Voir les 42 marchés</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+      <sc-for list="{{ featuredMarkets }}" as="m" hint-placeholder-count="3">
+        <button onClick="{{ m.open }}" style="text-align:left;border:0;padding:0;background:none">
+          <div class="card elev-sm" style="padding:0;overflow:hidden">
+            <div class="ph" style="height:200px">photo marché · 900 × 600</div>
+            <div style="padding:20px 22px 22px;display:flex;flex-direction:column;gap:10px">
+              <span class="card-kicker">{{ m.city }}</span>
+              <span class="card-title" style="font-size:22px">{{ m.name }}</span>
+              <span style="font-size:13px;opacity:.7">{{ m.storesLabel }} · Note {{ m.rating }}</span>
+              <span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+                <sc-for list="{{ m.cats }}" as="c" hint-placeholder-count="3"><span class="tag tag-neutral">{{ c }}</span></sc-for>
+              </span>
+            </div>
+          </div>
+        </button>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding:48px 0">
+    <h2 style="margin:0 0 24px">Catégories populaires</h2>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <sc-for list="{{ categories }}" as="c" hint-placeholder-count="8">
+        <button class="btn btn-secondary" onClick="{{ goSearch }}" style="padding:11px 22px;font-size:14px">{{ c }}</button>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding:48px 0">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:24px">
+      <h2 style="margin:0">Produits en vedette</h2>
+      <button class="btn btn-ghost" onClick="{{ goSearch }}">Tout voir</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px">
+      <sc-for list="{{ featuredProducts }}" as="p" hint-placeholder-count="4">
+        <div class="card" style="padding:0;overflow:hidden">
+          <button onClick="{{ p.open }}" style="border:0;padding:0;background:none;text-align:left">
+            <div class="ph" style="height:190px">photo produit · 800 × 800</div>
+          </button>
+          <div style="padding:16px 18px 18px;display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:11px;opacity:.6">{{ p.storeName }}</span>
+            <button onClick="{{ p.open }}" class="card-title" style="border:0;background:none;padding:0;text-align:left">{{ p.name }}</button>
+            <span style="display:flex;align-items:baseline;gap:8px"><strong style="font-size:17px;color:var(--color-accent-700)">{{ p.priceLabel }}</strong><s style="font-size:12px;opacity:.5">{{ p.compareLabel }}</s></span>
+            <button class="btn btn-primary btn-block" onClick="{{ p.add }}">Ajouter au panier</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding:56px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:56px">
+    <div>
+      <h3 style="margin:0 0 20px">Pour les acheteurs</h3>
+      <ol style="margin:0;padding-left:20px;font-size:15px;line-height:2.1;opacity:.8">
+        <li>Trouvez un marché près de vous</li>
+        <li>Explorez les boutiques</li>
+        <li>Choisissez vos produits</li>
+        <li>Commandez et suivez la livraison</li>
+      </ol>
+    </div>
+    <div>
+      <h3 style="margin:0 0 20px">Pour les commerçants</h3>
+      <ol style="margin:0;padding-left:20px;font-size:15px;line-height:2.1;opacity:.8">
+        <li>Créez votre compte vendeur</li>
+        <li>Rattachez votre boutique à un marché</li>
+        <li>Ajoutez vos produits</li>
+        <li>Recevez vos premières commandes</li>
+      </ol>
+      <button class="btn btn-primary" onClick="{{ goSeller }}" style="margin-top:22px">Devenir vendeur</button>
+    </div>
+  </section>
+</main>
+</sc-if>
+
+<sc-if value="{{ isMapImmersive }}">
+<main style="position:relative;height:calc(100vh - 66px)">
+  <div ref="{{ mapRef }}" style="position:absolute;inset:0"></div>
+  <div class="card elev-lg" style="position:absolute;top:20px;left:24px;width:340px;z-index:500;padding:18px 20px;gap:12px">
+    <input class="input" placeholder="Marchés, boutiques, produits" value="{{ query }}" onChange="{{ onQuery }}" style="min-height:42px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <sc-for list="{{ cityChips }}" as="c" hint-placeholder-count="5">
+        <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="5">
+        <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+      </sc-for>
+    </div>
+    <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:2px 0 0">Distance · {{ distLabel }}</p>
+    <input type="range" min="5" max="600" step="5" value="{{ dist }}" onChange="{{ onDist }}" style="width:100%;accent-color:var(--color-accent)">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onClick="{{ useLocation }}" style="flex:1">Près de moi</button>
+      <button class="btn btn-secondary" onClick="{{ openSelected }}" style="flex:1">Ouvrir</button>
+    </div>
+    <p style="font-size:12px;opacity:.65;margin:0">{{ resultCountLabel }}</p>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;z-index:500;padding:18px 24px 22px;background:linear-gradient(transparent,color-mix(in srgb,var(--color-bg) 88%,transparent) 55%)">
+    <div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:4px">
+      <sc-for list="{{ filteredMarkets }}" as="m" hint-placeholder-count="4">
+        <div class="card elev-md" style="{{ m.railStyle }}">
+          <button onClick="{{ m.select }}" style="border:0;background:none;padding:0;text-align:left;display:flex;gap:12px;align-items:center">
+            <span class="ph" style="width:56px;height:56px;border-radius:16px;flex:none">photo</span>
+            <span style="display:flex;flex-direction:column;gap:2px">
+              <span class="card-kicker">{{ m.city }} · {{ m.distLabel }}</span>
+              <span class="card-title" style="font-size:16px">{{ m.name }}</span>
+              <span style="font-size:11px;opacity:.65">{{ m.storesLabel }} · {{ m.rating }}</span>
+            </span>
+          </button>
+          <button class="btn btn-primary btn-block" onClick="{{ m.open }}" style="margin:0;font-size:12px">Ouvrir le marché</button>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isMapSplit }}">
+<main style="display:grid;grid-template-columns:400px 1fr;height:calc(100vh - 66px)">
+  <aside style="overflow:auto;padding:26px 28px 40px;background:var(--color-bg);box-shadow:1px 0 0 var(--color-divider)">
+    <h2 style="margin:0 0 6px;font-size:27px">Explorer</h2>
+    <p style="font-size:13px;opacity:.65;margin:0 0 20px">{{ resultCountLabel }}</p>
+    <input class="input" placeholder="Marchés, boutiques, produits" value="{{ query }}" onChange="{{ onQuery }}" style="margin-bottom:18px">
+    <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0 0 8px">Ville</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+      <sc-for list="{{ cityChips }}" as="c" hint-placeholder-count="5">
+        <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+      </sc-for>
+    </div>
+    <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0 0 8px">Catégorie</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+      <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="5">
+        <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+      </sc-for>
+    </div>
+    <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0 0 10px">Distance · {{ distLabel }}</p>
+    <input type="range" min="5" max="600" step="5" value="{{ dist }}" onChange="{{ onDist }}" style="width:100%;accent-color:var(--color-accent);margin-bottom:8px">
+    <button class="btn btn-secondary btn-block" onClick="{{ useLocation }}" style="margin-bottom:26px">Utiliser ma position</button>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <sc-for list="{{ filteredMarkets }}" as="m" hint-placeholder-count="4">
+        <button onClick="{{ m.select }}" style="text-align:left;border:0;background:none;padding:0">
+          <div class="card" style="{{ m.rowStyle }}">
+            <div style="display:flex;gap:14px;align-items:center">
+              <div class="ph" style="width:70px;height:70px;border-radius:20px;flex:none">photo</div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span class="card-kicker">{{ m.city }} · {{ m.distLabel }}</span>
+                <span class="card-title">{{ m.name }}</span>
+                <span style="font-size:12px;opacity:.65">{{ m.storesLabel }} · Note {{ m.rating }}</span>
+              </div>
+            </div>
+          </div>
+        </button>
+      </sc-for>
+    </div>
+  </aside>
+  <div style="position:relative">
+    <div ref="{{ mapRef }}" style="position:absolute;inset:0"></div>
+    <div style="position:absolute;left:24px;bottom:24px;width:360px;z-index:500">
+      <div class="card elev-lg" style="padding:0;overflow:hidden">
+        <div class="ph" style="height:130px">photo marché · 900 × 400</div>
+        <div style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px">
+          <span class="card-kicker">{{ selectedMarket.city }} · {{ selectedMarket.distLabel }}</span>
+          <span class="card-title" style="font-size:21px">{{ selectedMarket.name }}</span>
+          <span style="font-size:12px;opacity:.7">{{ selectedMarket.storesLabel }} · Note {{ selectedMarket.rating }}</span>
+          <div style="display:flex;gap:10px;margin-top:6px">
+            <button class="btn btn-primary" onClick="{{ openSelected }}">Ouvrir le marché</button>
+            <button class="btn btn-secondary" onClick="{{ toggleFavMarket }}">{{ favMarketLabel }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isSearch }}">
+<main style="max-width:1000px;margin:0 auto;padding:48px 40px 96px">
+  <h1 style="margin:0 0 8px;font-size:40px">{{ searchHeading }}</h1>
+  <p style="opacity:.65;font-size:14px;margin:0 0 36px">{{ searchTotalLabel }}</p>
+  <sc-for list="{{ searchGroups }}" as="g" hint-placeholder-count="3">
+    <section style="margin-bottom:44px">
+      <p class="card-kicker" style="margin:0 0 14px">{{ g.kind }}</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+          <button onClick="{{ it.open }}" style="text-align:left;border:0;background:none;padding:0">
+            <div class="card" style="flex-direction:row;align-items:center;gap:18px;padding:16px 20px">
+              <div class="ph" style="width:64px;height:64px;border-radius:18px;flex:none">photo</div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+                <span class="card-title">{{ it.name }}</span>
+                <span style="font-size:12px;opacity:.65">{{ it.meta }}</span>
+              </div>
+              <span style="font-size:15px;color:var(--color-accent-700)">{{ it.right }}</span>
+            </div>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+  </sc-for>
+</main>
+</sc-if>
+
+<sc-if value="{{ isMarketEditorial }}">
+<main>
+  <div style="position:relative">
+    <div class="ph" style="height:420px">photo de couverture du marché · 2400 × 1000</div>
+    <div style="position:absolute;left:0;right:0;bottom:0;padding:56px 40px 36px;background:linear-gradient(transparent,color-mix(in srgb,var(--color-bg) 92%,transparent) 60%)">
+      <div style="max-width:1280px;margin:0 auto">
+        <p style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;opacity:.7;margin:0 0 10px">{{ market.city }} · Maroc</p>
+        <h1 style="margin:0;font-size:76px;line-height:.98">{{ market.name }}</h1>
+      </div>
+    </div>
+  </div>
+  <div style="max-width:1280px;margin:0 auto;padding:0 40px 96px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:28px;padding:34px 0;box-shadow:0 1px 0 var(--color-divider)">
+      <div><p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0">Boutiques</p><p style="font-family:var(--font-heading);font-size:32px;margin:4px 0 0">{{ market.stores }}</p></div>
+      <div><p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0">Note · {{ market.reviews }} avis</p><p style="font-family:var(--font-heading);font-size:32px;margin:4px 0 0">{{ market.rating }}</p></div>
+      <div><p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0">Horaires</p><p style="font-family:var(--font-heading);font-size:24px;margin:6px 0 0">{{ market.hours }}</p></div>
+      <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end">
+        <button class="btn btn-secondary" onClick="{{ toggleFavMarketPage }}">{{ favMarketPageLabel }}</button>
+        <button class="btn btn-primary" onClick="{{ goMap }}">Voir sur la carte</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:56px;padding:44px 0">
+      <p style="font-size:22px;line-height:1.5;margin:0">{{ market.desc }}</p>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.9;opacity:.8">
+        <span>{{ market.address }}</span><span>{{ market.city }}, Maroc</span><span>{{ market.phone }}</span><span>{{ market.coords }}</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+      <input class="input" placeholder="Chercher une boutique ou un produit dans ce marché" value="{{ marketQuery }}" onChange="{{ onMarketQuery }}" style="max-width:420px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <sc-for list="{{ marketCatChips }}" as="c" hint-placeholder-count="4">
+          <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+        </sc-for>
+      </div>
+      <span style="margin-left:auto;font-size:13px;opacity:.65">{{ marketStoresLabel }}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px">
+      <sc-for list="{{ marketStores }}" as="s" hint-placeholder-count="3">
+        <button onClick="{{ s.open }}" style="text-align:left;border:0;background:none;padding:0">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="ph" style="height:260px;border-radius:28px">photo boutique · 900 × 700</div>
+            <span class="card-kicker">{{ s.cat }}</span>
+            <span class="card-title" style="font-size:24px">{{ s.name }}</span>
+            <span style="font-size:13px;opacity:.7">{{ s.productsLabel }} · Note {{ s.rating }}</span>
+          </div>
+        </button>
+      </sc-for>
+      <sc-if value="{{ marketEmpty }}">
+        <div class="card" style="align-items:flex-start;gap:12px;padding:34px">
+          <p class="card-title" style="margin:0">Aucune boutique ne correspond</p>
+          <button class="btn btn-secondary" onClick="{{ resetMarketFilters }}">Réinitialiser les filtres</button>
+        </div>
+      </sc-if>
+    </div>
+    <div style="display:flex;gap:24px;margin-top:64px;align-items:baseline">
+      <h3 style="margin:0">Marchés à proximité</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <sc-for list="{{ nearbyMarkets }}" as="n" hint-placeholder-count="3">
+          <button class="btn btn-secondary" onClick="{{ n.open }}">{{ n.name }} · {{ n.distLabel }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isMarketSidebar }}">
+<main>
+  <div class="ph" style="height:300px">photo de couverture du marché · 2400 × 800</div>
+  <div style="max-width:1280px;margin:0 auto;padding:0 40px 96px">
+    <div style="display:flex;gap:24px;align-items:flex-end;margin-top:-56px;position:relative">
+      <div class="ph elev-md" style="width:130px;height:130px;border-radius:999px;flex:none;border:6px solid var(--color-bg)">logo</div>
+      <div style="padding-bottom:14px">
+        <p style="font-size:12px;opacity:.6;margin:0 0 6px">Accueil / {{ market.city }} / {{ market.name }}</p>
+        <h1 style="margin:0;font-size:46px">{{ market.name }}</h1>
+      </div>
+      <div style="margin-left:auto;padding-bottom:16px;display:flex;gap:10px">
+        <button class="btn btn-secondary" onClick="{{ toggleFavMarketPage }}">{{ favMarketPageLabel }}</button>
+        <button class="btn btn-primary" onClick="{{ goMap }}">Voir sur la carte</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:56px;margin-top:44px">
+      <div>
+        <p style="font-size:17px;opacity:.78;max-width:62ch;margin:0 0 28px">{{ market.desc }}</p>
+        <div style="display:flex;gap:34px;margin-bottom:36px">
+          <div><p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0">Boutiques</p><p style="font-family:var(--font-heading);font-size:28px;margin:4px 0 0">{{ market.stores }}</p></div>
+          <div><p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0">Note</p><p style="font-family:var(--font-heading);font-size:28px;margin:4px 0 0">{{ market.rating }}</p></div>
+          <div><p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0">Avis</p><p style="font-family:var(--font-heading);font-size:28px;margin:4px 0 0">{{ market.reviews }}</p></div>
+        </div>
+        <h3 style="margin:0 0 14px">Chercher dans ce marché</h3>
+        <input class="input" placeholder="Ex. « ordinateur » — uniquement dans ce marché" value="{{ marketQuery }}" onChange="{{ onMarketQuery }}" style="margin-bottom:16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:30px">
+          <sc-for list="{{ marketCatChips }}" as="c" hint-placeholder-count="4">
+            <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+          </sc-for>
+        </div>
+        <h2 style="margin:0 0 20px">{{ marketStoresLabel }}</h2>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:22px">
+          <sc-for list="{{ marketStores }}" as="s" hint-placeholder-count="4">
+            <button onClick="{{ s.open }}" style="text-align:left;border:0;background:none;padding:0">
+              <div class="card elev-sm" style="padding:0;overflow:hidden;height:100%">
+                <div class="ph" style="height:150px">photo boutique · 800 × 500</div>
+                <div style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px">
+                  <span class="card-kicker">{{ s.cat }}</span>
+                  <span class="card-title" style="font-size:20px">{{ s.name }}</span>
+                  <span style="font-size:12px;opacity:.65">{{ s.productsLabel }} · Note {{ s.rating }}</span>
+                </div>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ marketEmpty }}">
+          <div class="card" style="align-items:flex-start;gap:12px;padding:34px">
+            <p class="card-title" style="margin:0">Aucune boutique ne correspond</p>
+            <p style="font-size:14px;opacity:.7;margin:0">Essayez un autre mot-clé ou retirez les filtres de catégorie.</p>
+            <button class="btn btn-secondary" onClick="{{ resetMarketFilters }}">Réinitialiser les filtres</button>
+          </div>
+        </sc-if>
+      </div>
+      <aside style="display:flex;flex-direction:column;gap:22px">
+        <div class="card">
+          <p class="card-kicker" style="margin:0">Informations</p>
+          <p style="font-size:14px;margin:0;line-height:1.9">{{ market.address }}<br>{{ market.city }}, Maroc<br>{{ market.phone }}</p>
+          <p style="font-size:13px;opacity:.7;margin:8px 0 0">Ouvert aujourd'hui · {{ market.hours }}</p>
+          <div class="ph" style="height:150px;border-radius:20px;margin-top:12px">mini-carte · {{ market.coords }}</div>
+          <button class="btn btn-secondary btn-block" onClick="{{ goMap }}">Itinéraire</button>
+        </div>
+        <div class="card">
+          <p class="card-kicker" style="margin:0">Marchés à proximité</p>
+          <sc-for list="{{ nearbyMarkets }}" as="n" hint-placeholder-count="3">
+            <button onClick="{{ n.open }}" style="border:0;background:none;padding:8px 0;text-align:left;display:flex;justify-content:space-between;width:100%;font-size:14px;color:var(--color-text);box-shadow:0 1px 0 var(--color-divider)"><span>{{ n.name }}</span><span style="opacity:.6;font-size:12px">{{ n.distLabel }}</span></button>
+          </sc-for>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isStore }}">
+<main>
+  <div class="ph" style="height:260px">photo de couverture boutique · 2400 × 700</div>
+  <div style="max-width:1280px;margin:0 auto;padding:0 40px 96px">
+    <div style="display:flex;gap:22px;align-items:flex-end;margin-top:-48px">
+      <div class="ph elev-md" style="width:112px;height:112px;border-radius:999px;flex:none;border:6px solid var(--color-bg)">logo</div>
+      <div style="padding-bottom:12px">
+        <p style="font-size:12px;opacity:.6;margin:0 0 6px">Accueil / {{ store.city }} / <a href="#" onClick="{{ openStoreMarket }}">{{ store.marketName }}</a> / {{ store.name }}</p>
+        <h1 style="margin:0;font-size:40px">{{ store.name }}</h1>
+      </div>
+      <div style="margin-left:auto;padding-bottom:14px;display:flex;gap:10px;align-items:center">
+        <span class="tag tag-accent">Note {{ store.rating }} · {{ store.reviews }} avis</span>
+        <button class="btn btn-secondary" onClick="{{ toggleFavStore }}">{{ favStoreLabel }}</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:56px;margin-top:40px">
+      <div>
+        <p style="font-size:16px;opacity:.78;max-width:62ch;margin:0 0 26px">{{ store.desc }}</p>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+          <input class="input" placeholder="Chercher dans cette boutique" value="{{ storeQuery }}" onChange="{{ onStoreQuery }}" style="max-width:320px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <sc-for list="{{ sortChips }}" as="c" hint-placeholder-count="3">
+              <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+          <sc-for list="{{ storeProducts }}" as="p" hint-placeholder-count="6">
+            <div class="card" style="padding:0;overflow:hidden">
+              <button onClick="{{ p.open }}" style="border:0;padding:0;background:none;width:100%">
+                <div class="ph" style="height:170px">photo produit · 800 × 800</div>
+              </button>
+              <div style="padding:15px 17px 17px;display:flex;flex-direction:column;gap:7px">
+                <button onClick="{{ p.open }}" class="card-title" style="border:0;background:none;padding:0;text-align:left;font-size:16px">{{ p.name }}</button>
+                <span style="display:flex;align-items:baseline;gap:8px"><strong style="font-size:16px;color:var(--color-accent-700)">{{ p.priceLabel }}</strong><s style="font-size:12px;opacity:.5">{{ p.compareLabel }}</s></span>
+                <span style="font-size:11px;opacity:.6">{{ p.stockLabel }}</span>
+                <button class="btn btn-primary btn-block" onClick="{{ p.add }}">Ajouter</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <h3 style="margin:44px 0 16px">Avis clients</h3>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <sc-for list="{{ reviews }}" as="r" hint-placeholder-count="2">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="card-title" style="font-size:15px">{{ r.author }}</span><span class="tag tag-accent-2">{{ r.stars }}</span></div>
+              <p style="font-size:14px;opacity:.8;margin:0">{{ r.text }}</p>
+              <p style="font-size:12px;opacity:.6;margin:0">Réponse du vendeur : {{ r.reply }}</p>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <aside style="display:flex;flex-direction:column;gap:22px">
+        <div class="card">
+          <p class="card-kicker" style="margin:0">Boutique</p>
+          <p style="font-size:14px;margin:0;line-height:1.9">{{ store.address }}<br>{{ store.phone }}<br>{{ store.email }}</p>
+          <p style="font-size:13px;opacity:.7;margin:6px 0 0">Horaires · {{ store.hours }}</p>
+          <div class="ph" style="height:140px;border-radius:20px;margin-top:10px">mini-carte boutique</div>
+          <button class="btn btn-secondary btn-block" onClick="{{ openStoreMarket }}">Voir le marché</button>
+        </div>
+        <div class="card">
+          <p class="card-kicker" style="margin:0">Catégories</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <sc-for list="{{ store.cats }}" as="c" hint-placeholder-count="3"><span class="tag tag-neutral">{{ c }}</span></sc-for>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isProduct }}">
+<main style="max-width:1280px;margin:0 auto;padding:32px 40px 96px">
+  <p style="font-size:12px;opacity:.6;margin:0 0 26px">Accueil / {{ product.city }} / <a href="#" onClick="{{ openProductMarket }}">{{ product.marketName }}</a> / <a href="#" onClick="{{ openProductStore }}">{{ product.storeName }}</a> / {{ product.cat }} / {{ product.name }}</p>
+  <div style="display:grid;grid-template-columns:1.05fr .95fr;gap:56px">
+    <div>
+      <div class="ph" style="height:520px;border-radius:32px">photo produit · 1400 × 1400</div>
+      <div style="display:flex;gap:14px;margin-top:14px">
+        <div class="ph" style="width:96px;height:96px;border-radius:22px">vue 2</div>
+        <div class="ph" style="width:96px;height:96px;border-radius:22px">vue 3</div>
+        <div class="ph" style="width:96px;height:96px;border-radius:22px">vue 4</div>
+      </div>
+    </div>
+    <div>
+      <p class="card-kicker" style="margin:0 0 12px">{{ product.cat }}</p>
+      <h1 style="margin:0 0 14px;font-size:42px">{{ product.name }}</h1>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:10px">
+        <strong style="font-family:var(--font-heading);font-size:36px;color:var(--color-accent-700)">{{ product.priceLabel }}</strong>
+        <s style="opacity:.5">{{ product.compareLabel }}</s>
+        <span class="tag tag-accent">{{ product.discountLabel }}</span>
+      </div>
+      <p style="font-size:13px;margin:0 0 20px;color:var(--color-accent-2-700)">{{ product.stockLabel }}</p>
+      <sc-if value="{{ hasVariants }}">
+        <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:22px">
+          <sc-for list="{{ variantGroups }}" as="g" hint-placeholder-count="2">
+            <div>
+              <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin:0 0 8px">{{ g.name }} · {{ g.selected }}</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{ g.values }}" as="v" hint-placeholder-count="3">
+                  <button class="btn" onClick="{{ v.on }}" style="{{ v.style }}">{{ v.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--color-divider);border-radius:999px;padding:4px 6px">
+          <button class="btn btn-icon" onClick="{{ decQty }}">–</button>
+          <span style="min-width:26px;text-align:center;font-size:15px">{{ qty }}</span>
+          <button class="btn btn-icon" onClick="{{ incQty }}">+</button>
+        </div>
+        <button class="btn btn-primary" onClick="{{ addProduct }}" style="flex:1;padding:14px;font-size:15px">Ajouter au panier</button>
+        <button class="btn btn-secondary" onClick="{{ toggleFavProduct }}">{{ favProductLabel }}</button>
+      </div>
+      <button class="btn btn-secondary btn-block" onClick="{{ buyNow }}" style="padding:13px">Acheter maintenant</button>
+      <div class="card" style="margin-top:26px;flex-direction:row;align-items:center;gap:16px">
+        <div class="ph" style="width:56px;height:56px;border-radius:999px;flex:none">logo</div>
+        <div style="flex:1">
+          <p style="margin:0;font-size:15px;font-family:var(--font-heading)">{{ product.storeName }}</p>
+          <p style="margin:0;font-size:12px;opacity:.65">{{ product.marketName }} · {{ product.city }} · Note {{ product.storeRating }}</p>
+        </div>
+        <button class="btn btn-ghost" onClick="{{ openProductStore }}">Visiter</button>
+      </div>
+      <h4 style="margin:32px 0 10px">Description</h4>
+      <p style="font-size:15px;opacity:.78;margin:0 0 8px">{{ product.desc }}</p>
+      <p style="font-size:12px;opacity:.6;margin:0">Réf. {{ product.sku }} · Poids {{ product.weight }}</p>
+    </div>
+  </div>
+  <section style="margin-top:72px">
+    <h2 style="margin:0 0 20px">Produits similaires</h2>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px">
+      <sc-for list="{{ relatedProducts }}" as="p" hint-placeholder-count="4">
+        <div class="card" style="padding:0;overflow:hidden">
+          <button onClick="{{ p.open }}" style="border:0;padding:0;background:none;width:100%"><div class="ph" style="height:170px">photo produit</div></button>
+          <div style="padding:15px 17px 17px;display:flex;flex-direction:column;gap:7px">
+            <button onClick="{{ p.open }}" class="card-title" style="border:0;background:none;padding:0;text-align:left;font-size:16px">{{ p.name }}</button>
+            <strong style="font-size:15px;color:var(--color-accent-700)">{{ p.priceLabel }}</strong>
+            <button class="btn btn-secondary btn-block" onClick="{{ p.add }}">Ajouter</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+</main>
+</sc-if>
+
+<sc-if value="{{ cartOpen }}">
+<div style="position:fixed;inset:0;z-index:800;background:color-mix(in srgb,var(--color-neutral-900) 45%,transparent)" onClick="{{ closeCart }}"></div>
+<aside style="position:fixed;top:0;right:0;bottom:0;width:440px;z-index:810;background:var(--color-bg);box-shadow:var(--shadow-lg);display:flex;flex-direction:column">
+  <div style="padding:24px 28px;display:flex;align-items:baseline;justify-content:space-between">
+    <h3 style="margin:0">Panier · {{ cartCount }}</h3>
+    <button class="btn btn-ghost" onClick="{{ closeCart }}">Fermer</button>
+  </div>
+  <div style="flex:1;overflow:auto;padding:0 28px">
+    <sc-for list="{{ cartGroups }}" as="g" hint-placeholder-count="2">
+      <div style="margin-bottom:26px">
+        <p class="card-kicker" style="margin:0 0 10px">{{ g.storeName }} · {{ g.marketName }}</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+            <div class="card" style="flex-direction:row;gap:14px;align-items:center;padding:12px 14px">
+              <div class="ph" style="width:56px;height:56px;border-radius:16px;flex:none">photo</div>
+              <div style="flex:1"><p style="margin:0;font-size:14px">{{ it.name }}</p><p style="margin:0;font-size:12px;opacity:.65">{{ it.priceLabel }} × {{ it.qty }}</p></div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <button class="btn btn-icon" onClick="{{ it.dec }}">–</button>
+                <button class="btn btn-icon" onClick="{{ it.inc }}">+</button>
+                <button class="btn btn-ghost" onClick="{{ it.remove }}" style="font-size:12px">Retirer</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <p style="text-align:right;font-size:13px;opacity:.7;margin:8px 0 0">Sous-total {{ g.subtotalLabel }}</p>
+      </div>
+    </sc-for>
+    <sc-if value="{{ cartEmpty }}">
+      <div class="card" style="align-items:flex-start;padding:30px">
+        <p class="card-title" style="margin:0">Votre panier est vide</p>
+        <p style="font-size:14px;opacity:.7;margin:0">Explorez les marchés pour trouver vos premières boutiques.</p>
+        <button class="btn btn-primary" onClick="{{ goMapFromCart }}">Explorer la carte</button>
+      </div>
+    </sc-if>
+  </div>
+  <div style="padding:22px 28px;box-shadow:0 -1px 0 var(--color-divider)">
+    <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px"><span style="opacity:.7">Sous-total</span><span>{{ cartSubtotalLabel }}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:10px"><span style="opacity:.7">Livraison ({{ cartStoreCount }})</span><span>{{ cartShippingLabel }}</span></div>
+    <div style="display:flex;justify-content:space-between;font-family:var(--font-heading);font-size:22px;margin-bottom:14px"><span>Total</span><span>{{ cartTotalLabel }}</span></div>
+    <button class="btn btn-primary btn-block" onClick="{{ goCheckout }}" style="padding:14px;font-size:15px">Passer au paiement</button>
+    <button class="btn btn-ghost btn-block" onClick="{{ goCart }}">Voir le panier détaillé</button>
+  </div>
+</aside>
+</sc-if>
+
+<sc-if value="{{ toast }}">
+<div style="position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:900" class="card elev-lg">
+  <p style="margin:0;font-size:14px">{{ toast }}</p>
+</div>
+</sc-if>
+
+<div style="position:fixed;left:0;right:0;bottom:0;z-index:700;display:flex;justify-content:center;pointer-events:none;padding:12px">
+  <div class="card elev-lg" style="flex-direction:row;gap:4px;padding:7px 10px;pointer-events:auto;align-items:center;background:var(--color-neutral-100)">
+    <span style="font:10px ui-monospace,Menlo,monospace;letter-spacing:.08em;opacity:.5;padding:0 6px">ÉCRANS</span>
+    <sc-for list="{{ screenNav }}" as="s" hint-placeholder-count="10">
+      <button class="btn" onClick="{{ s.on }}" style="{{ s.style }}">{{ s.label }}</button>
+    </sc-for>
+    <a href="Qissariaty Mobile.dc.html" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;text-decoration:none;color:var(--color-text)">Version mobile →</a>
+  </div>
+</div>
+
+
+<sc-if value="{{ isCart }}">
+<main style="max-width:1180px;margin:0 auto;padding:44px 40px 120px">
+  <h1 style="margin:0 0 6px;font-size:42px">Votre panier</h1>
+  <p style="opacity:.65;font-size:14px;margin:0 0 34px">{{ cartCount }} articles · {{ cartStoreCount }} · chaque boutique expédie séparément</p>
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:48px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:26px">
+      <sc-for list="{{ cartGroups }}" as="g" hint-placeholder-count="2">
+        <div class="card" style="padding:22px 24px;gap:16px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div><p class="card-kicker" style="margin:0">{{ g.marketName }}</p><p class="card-title" style="margin:2px 0 0;font-size:19px">{{ g.storeName }}</p></div>
+            <span style="font-size:13px;opacity:.7">Sous-total {{ g.subtotalLabel }}</span>
+          </div>
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+            <div style="display:flex;gap:16px;align-items:center;padding-top:14px;box-shadow:0 -1px 0 var(--color-divider)">
+              <div class="ph" style="width:76px;height:76px;border-radius:20px;flex:none">photo</div>
+              <div style="flex:1"><p style="margin:0;font-size:15px">{{ it.name }}</p><p style="margin:2px 0 0;font-size:12px;opacity:.65">{{ it.priceLabel }} l'unité</p></div>
+              <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--color-divider);border-radius:999px;padding:3px 5px">
+                <button class="btn btn-icon" onClick="{{ it.dec }}">–</button>
+                <span style="min-width:22px;text-align:center;font-size:14px">{{ it.qty }}</span>
+                <button class="btn btn-icon" onClick="{{ it.inc }}">+</button>
+              </div>
+              <button class="btn btn-ghost" onClick="{{ it.remove }}" style="font-size:12px">Retirer</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+      <sc-if value="{{ cartEmpty }}">
+        <div class="card" style="align-items:flex-start;padding:40px">
+          <p class="card-title" style="margin:0;font-size:20px">Votre panier est vide</p>
+          <p style="font-size:14px;opacity:.7;margin:0">Explorez les marchés pour trouver vos premières boutiques.</p>
+          <button class="btn btn-primary" onClick="{{ goMap }}">Explorer la carte</button>
+        </div>
+      </sc-if>
+    </div>
+    <div class="card elev-sm" style="padding:24px;position:sticky;top:90px">
+      <p class="card-kicker" style="margin:0">Récapitulatif</p>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span style="opacity:.7">Sous-total</span><span>{{ cartSubtotalLabel }}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span style="opacity:.7">Livraison</span><span>{{ cartShippingLabel }}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span style="opacity:.7">Remise</span><span>0 DH</span></div>
+      <div style="display:flex;justify-content:space-between;font-family:var(--font-heading);font-size:24px;padding-top:10px;box-shadow:0 -1px 0 var(--color-divider)"><span>Total</span><span>{{ cartTotalLabel }}</span></div>
+      <button class="btn btn-primary btn-block" onClick="{{ goCheckout }}" style="padding:14px;font-size:15px">Passer au paiement</button>
+      <p style="font-size:12px;opacity:.6;margin:6px 0 0">Paiement à la livraison ou par carte. Retrait en boutique possible à Derb Omar.</p>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isCheckout }}">
+<main style="max-width:1100px;margin:0 auto;padding:44px 40px 120px">
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:30px">
+    <sc-for list="{{ checkoutSteps }}" as="s" hint-placeholder-count="3">
+      <span class="tag" style="{{ s.style }}">{{ s.label }}</span>
+    </sc-for>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:48px;align-items:start">
+    <div>
+      <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+        <h1 style="margin:0 0 24px;font-size:36px">Adresse de livraison</h1>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="field"><label>Nom complet</label><input class="input" value="Salma El Amrani"></div>
+          <div class="field"><label>Téléphone</label><input class="input" value="+212 661 20 44 18"></div>
+          <div class="field" style="grid-column:1/-1"><label>Adresse</label><input class="input" value="18 rue Ibn Khaldoun, appartement 6"></div>
+          <div class="field"><label>Ville</label><input class="input" value="Casablanca"></div>
+          <div class="field"><label>Code postal</label><input class="input" value="20250"></div>
+          <div class="field" style="grid-column:1/-1"><label>Instructions de livraison (facultatif)</label><textarea class="input" style="border-radius:20px">Livrer après 17 h, interphone 6B.</textarea></div>
+        </div>
+        <button class="btn btn-primary" onClick="{{ nextStep }}" style="margin-top:22px;padding:13px 28px">Continuer vers le paiement</button>
+      </sc-if>
+      <sc-if value="{{ isStep2 }}">
+        <h1 style="margin:0 0 24px;font-size:36px">Paiement</h1>
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:520px">
+          <sc-for list="{{ payMethods }}" as="p" hint-placeholder-count="3">
+            <button onClick="{{ p.on }}" style="border:0;background:none;padding:0;text-align:left">
+              <div class="card" style="{{ p.style }}">
+                <p class="card-title" style="margin:0;font-size:16px">{{ p.label }}</p>
+                <p style="margin:0;font-size:13px;opacity:.7">{{ p.hint }}</p>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ payCard }}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:520px;margin-top:20px">
+            <div class="field" style="grid-column:1/-1"><label>Numéro de carte</label><input class="input" placeholder="4242 4242 4242 4242"></div>
+            <div class="field"><label>Expiration</label><input class="input" placeholder="09/29"></div>
+            <div class="field"><label>CVC</label><input class="input" placeholder="123"></div>
+          </div>
+        </sc-if>
+        <div style="display:flex;gap:12px;margin-top:24px">
+          <button class="btn btn-secondary" onClick="{{ prevStep }}">Retour</button>
+          <button class="btn btn-primary" onClick="{{ placeOrder }}" style="padding:13px 28px">Confirmer la commande · {{ cartTotalLabel }}</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isStep3 }}">
+        <p class="card-kicker" style="margin:0 0 12px">Commande confirmée</p>
+        <h1 style="margin:0 0 14px;font-size:38px">Merci, Salma.</h1>
+        <p style="font-size:16px;opacity:.78;max-width:52ch">Votre commande {{ orderNumber }} a été transmise aux boutiques concernées. Chaque boutique confirme sa partie séparément ; vous recevrez une notification à chaque étape.</p>
+        <div style="display:flex;gap:12px;margin-top:24px">
+          <button class="btn btn-primary" onClick="{{ goOrder }}">Suivre ma commande</button>
+          <button class="btn btn-secondary" onClick="{{ goHome }}">Continuer mes achats</button>
+        </div>
+      </sc-if>
+    </div>
+    <div class="card elev-sm" style="padding:24px;position:sticky;top:90px">
+      <p class="card-kicker" style="margin:0">Votre commande</p>
+      <sc-for list="{{ cartGroups }}" as="g" hint-placeholder-count="2">
+        <div style="padding-bottom:10px">
+          <p style="margin:0;font-size:13px;font-family:var(--font-heading)">{{ g.storeName }}</p>
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+            <p style="margin:2px 0 0;font-size:12px;opacity:.7">{{ it.qty }} × {{ it.name }}</p>
+          </sc-for>
+        </div>
+      </sc-for>
+      <div style="display:flex;justify-content:space-between;font-size:14px;padding-top:10px;box-shadow:0 -1px 0 var(--color-divider)"><span style="opacity:.7">Sous-total</span><span>{{ cartSubtotalLabel }}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px"><span style="opacity:.7">Livraison</span><span>{{ cartShippingLabel }}</span></div>
+      <div style="display:flex;justify-content:space-between;font-family:var(--font-heading);font-size:22px"><span>Total</span><span>{{ cartTotalLabel }}</span></div>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isOrder }}">
+<main style="max-width:1080px;margin:0 auto;padding:44px 40px 120px">
+  <p style="font-size:12px;opacity:.6;margin:0 0 10px">Compte / Commandes / {{ orderNumber }}</p>
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:34px">
+    <div>
+      <h1 style="margin:0 0 6px;font-size:40px">Commande {{ orderNumber }}</h1>
+      <p style="margin:0;font-size:14px;opacity:.7">Passée le 22 août 2026 · {{ cartTotalLabel }} · Payée</p>
+    </div>
+    <button class="btn btn-secondary" onClick="{{ goHome }}">Besoin d'aide ?</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:48px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <sc-for list="{{ subOrders }}" as="o" hint-placeholder-count="2">
+        <div class="card" style="padding:24px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div><p class="card-kicker" style="margin:0">{{ o.marketName }}</p><p class="card-title" style="margin:2px 0 0;font-size:19px">{{ o.storeName }}</p></div>
+            <span class="tag tag-accent-2">{{ o.statusLabel }}</span>
+          </div>
+          <div style="display:flex;gap:8px;margin:16px 0 6px">
+            <sc-for list="{{ o.steps }}" as="s" hint-placeholder-count="5">
+              <div style="flex:1"><div style="{{ s.bar }}"></div><p style="margin:8px 0 0;font-size:11px;opacity:.7">{{ s.label }}</p></div>
+            </sc-for>
+          </div>
+          <sc-for list="{{ o.items }}" as="it" hint-placeholder-count="2">
+            <div style="display:flex;gap:14px;align-items:center;padding-top:14px;box-shadow:0 -1px 0 var(--color-divider)">
+              <div class="ph" style="width:56px;height:56px;border-radius:16px;flex:none">photo</div>
+              <div style="flex:1"><p style="margin:0;font-size:14px">{{ it.name }}</p><p style="margin:0;font-size:12px;opacity:.65">{{ it.qty }} × {{ it.priceLabel }}</p></div>
+              <button class="btn btn-ghost" onClick="{{ it.review }}" style="font-size:12px">Laisser un avis</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card"><p class="card-kicker" style="margin:0">Livraison</p><p style="margin:0;font-size:14px;line-height:1.9">Salma El Amrani<br>18 rue Ibn Khaldoun, apt 6<br>Casablanca 20250<br>+212 661 20 44 18</p></div>
+      <div class="card"><p class="card-kicker" style="margin:0">Paiement</p><p style="margin:0;font-size:14px">Carte bancaire · **** 4242<br>Payée le 22 août 2026</p></div>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isSellerSignup }}">
+<main style="max-width:960px;margin:0 auto;padding:52px 40px 120px">
+  <p class="card-kicker" style="margin:0 0 14px">Vendre sur Qissariaty</p>
+  <h1 style="margin:0 0 12px;font-size:48px;max-width:20ch">Votre boutique du souk, en ligne.</h1>
+  <p style="font-size:17px;opacity:.75;max-width:52ch;margin:0 0 34px">Rattachez votre boutique à son marché, ajoutez vos produits, recevez vos commandes. Inscription gratuite, commission de 4 % par vente.</p>
+  <div style="display:flex;gap:10px;margin-bottom:30px">
+    <sc-for list="{{ sellerSteps }}" as="s" hint-placeholder-count="4"><span class="tag" style="{{ s.style }}">{{ s.label }}</span></sc-for>
+  </div>
+  <div class="card" style="padding:30px;max-width:680px">
+    <sc-if value="{{ sStep1 }}" hint-placeholder-val="{{ true }}">
+      <h3 style="margin:0 0 18px">Votre compte</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="field"><label>Nom complet</label><input class="input" placeholder="Karim Bennani"></div>
+        <div class="field"><label>Téléphone</label><input class="input" placeholder="+212 6.."></div>
+        <div class="field"><label>E-mail</label><input class="input" placeholder="karim@boutique.ma"></div>
+        <div class="field"><label>Mot de passe</label><input class="input" type="password" placeholder="••••••••"></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ sStep2 }}">
+      <h3 style="margin:0 0 18px">Votre boutique</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="field" style="grid-column:1/-1"><label>Nom de la boutique</label><input class="input" placeholder="Tissus Bennani"></div>
+        <div class="field"><label>Catégorie principale</label><input class="input" placeholder="Textile"></div>
+        <div class="field"><label>Registre de commerce</label><input class="input" placeholder="RC 148920"></div>
+        <div class="field" style="grid-column:1/-1"><label>Description</label><textarea class="input" style="border-radius:20px" placeholder="Ce que vous vendez, depuis quand, ce qui vous distingue."></textarea></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ sStep3 }}">
+      <h3 style="margin:0 0 6px">Emplacement</h3>
+      <p style="font-size:13px;opacity:.7;margin:0 0 16px">Votre boutique se trouve-t-elle dans un marché existant ?</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ marketPicks }}" as="m" hint-placeholder-count="4">
+          <button onClick="{{ m.on }}" style="border:0;background:none;padding:0;text-align:left">
+            <div class="card" style="{{ m.style }};flex-direction:row;align-items:center;gap:14px;padding:12px 16px">
+              <div style="flex:1"><p style="margin:0;font-size:15px;font-family:var(--font-heading)">{{ m.name }}</p><p style="margin:0;font-size:12px;opacity:.65">{{ m.city }} · {{ m.storesLabel }}</p></div>
+              <span style="font-size:12px;opacity:.6">{{ m.distLabel }}</span>
+            </div>
+          </button>
+        </sc-for>
+      </div>
+      <button class="btn btn-ghost" onClick="{{ requestMarket }}" style="margin-top:14px">Mon marché n'est pas dans la liste — le proposer</button>
+      <div class="ph" style="height:180px;border-radius:24px;margin-top:16px">carte · placer l'emplacement exact de la boutique</div>
+    </sc-if>
+    <sc-if value="{{ sStep4 }}">
+      <h3 style="margin:0 0 10px">Dossier envoyé</h3>
+      <p style="font-size:15px;opacity:.78;margin:0 0 8px">Votre boutique est en <strong>attente de validation</strong>. Un administrateur vérifie le registre de commerce et l'emplacement, généralement sous 48 h. Elle ne sera visible publiquement qu'après approbation.</p>
+      <span class="tag tag-accent">Statut · en attente</span>
+      <button class="btn btn-primary" onClick="{{ goSellerDash }}" style="margin-top:18px">Aller au tableau de bord</button>
+    </sc-if>
+    <div style="display:flex;gap:12px;margin-top:24px">
+      <sc-if value="{{ sellerCanBack }}"><button class="btn btn-secondary" onClick="{{ sellerPrev }}">Retour</button></sc-if>
+      <sc-if value="{{ sellerCanNext }}"><button class="btn btn-primary" onClick="{{ sellerNext }}" style="padding:12px 26px">{{ sellerNextLabel }}</button></sc-if>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isSeller }}">
+<main style="display:grid;grid-template-columns:236px 1fr;min-height:calc(100vh - 66px)">
+  <aside style="padding:26px 20px;box-shadow:1px 0 0 var(--color-divider)">
+    <p class="card-kicker" style="margin:0 0 4px">Espace vendeur</p>
+    <p style="font-family:var(--font-heading);font-size:18px;margin:0 0 20px">Électro Atlas</p>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <sc-for list="{{ sellerTabs }}" as="t" hint-placeholder-count="6">
+        <button onClick="{{ t.on }}" style="{{ t.style }}">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <div class="card" style="margin-top:26px;padding:16px"><p class="card-kicker" style="margin:0">Notifications</p><p style="margin:0;font-size:13px;opacity:.75">2 nouvelles commandes<br>1 avis à répondre</p></div>
+  </aside>
+  <section style="padding:32px 40px 90px">
+    <sc-if value="{{ tabApercu }}" hint-placeholder-val="{{ true }}">
+      <h1 style="margin:0 0 26px;font-size:34px">Aperçu</h1>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:34px">
+        <sc-for list="{{ sellerKpis }}" as="k" hint-placeholder-count="4">
+          <div class="card" style="padding:18px 20px;gap:4px"><p class="card-kicker" style="margin:0">{{ k.label }}</p><p style="font-family:var(--font-heading);font-size:29px;margin:0">{{ k.value }}</p><p style="margin:0;font-size:12px;color:var(--color-accent-2-700)">{{ k.delta }}</p></div>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:24px">
+        <div class="card" style="padding:22px">
+          <p class="card-kicker" style="margin:0">Chiffre d'affaires · 12 dernières semaines</p>
+          <div style="display:flex;align-items:flex-end;gap:8px;height:170px;margin-top:12px">
+            <div style="flex:1;height:38%;background:var(--color-accent-300);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:52%;background:var(--color-accent-300);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:44%;background:var(--color-accent-300);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:61%;background:var(--color-accent-400);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:57%;background:var(--color-accent-400);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:70%;background:var(--color-accent-400);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:66%;background:var(--color-accent-500);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:78%;background:var(--color-accent-500);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:72%;background:var(--color-accent-500);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:88%;background:var(--color-accent);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:81%;background:var(--color-accent);border-radius:10px 10px 4px 4px"></div>
+            <div style="flex:1;height:100%;background:var(--color-accent);border-radius:10px 10px 4px 4px"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:22px">
+          <p class="card-kicker" style="margin:0">Meilleures ventes</p>
+          <sc-for list="{{ bestSellers }}" as="b" hint-placeholder-count="4">
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:9px 0;box-shadow:0 1px 0 var(--color-divider)"><span>{{ b.name }}</span><span style="opacity:.65">{{ b.sold }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tabProduits }}">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px">
+        <h1 style="margin:0;font-size:34px">Produits</h1>
+        <button class="btn btn-primary" onClick="{{ addProductRow }}">Ajouter un produit</button>
+      </div>
+      <table class="table">
+        <thead><tr><th>Produit</th><th>Réf.</th><th>Prix</th><th>Stock</th><th>Statut</th><th>Actions</th></tr></thead>
+        <tbody>
+          <sc-for list="{{ sellerProducts }}" as="p" hint-placeholder-count="5">
+            <tr>
+              <td><span style="display:flex;align-items:center;gap:12px"><span class="ph" style="width:44px;height:44px;border-radius:12px">img</span>{{ p.name }}</span></td>
+              <td style="opacity:.7">{{ p.sku }}</td>
+              <td>{{ p.priceLabel }}</td>
+              <td>{{ p.stock }}</td>
+              <td><span class="tag {{ p.tagClass }}">{{ p.statusLabel }}</span></td>
+              <td><span style="display:flex;gap:4px"><button class="btn btn-ghost" onClick="{{ p.edit }}" style="font-size:12px">Modifier</button><button class="btn btn-ghost" onClick="{{ p.toggle }}" style="font-size:12px">{{ p.toggleLabel }}</button><button class="btn btn-ghost" onClick="{{ p.remove }}" style="font-size:12px">Supprimer</button></span></td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </sc-if>
+    <sc-if value="{{ tabNouveau }}">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px">
+        <h1 style="margin:0;font-size:34px">{{ formTitle }}</h1>
+        <button class="btn btn-ghost" onClick="{{ cancelProduct }}">Retour aux produits</button>
+      </div>
+      <p style="font-size:14px;opacity:.68;margin:0 0 26px">{{ formHint }}</p>
+      <div style="display:grid;grid-template-columns:1fr 330px;gap:36px;align-items:start;max-width:1080px">
+        <div style="display:flex;flex-direction:column;gap:26px">
+          <div class="card" style="padding:24px;gap:16px">
+            <p class="card-kicker" style="margin:0">Informations</p>
+            <div class="field"><label>Nom du produit</label><input class="input" value="{{ fName }}" onChange="{{ onFName }}" placeholder="Ex. Bouilloire électrique 1,7 L"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div class="field"><label>Catégorie</label><input class="input" value="{{ fCat }}" onChange="{{ onFCat }}" placeholder="Petit électroménager"></div>
+              <div class="field"><label>Référence (SKU)</label><input class="input" value="{{ fSku }}" onChange="{{ onFSku }}" placeholder="EA-BOU-249"></div>
+            </div>
+            <div class="field"><label>Description</label><textarea class="input" style="border-radius:20px;min-height:120px" value="{{ fDesc }}" onChange="{{ onFDesc }}" placeholder="Matière, dimensions, garantie, ce qui est inclus."></textarea></div>
+            <p style="margin:0;font-size:12px;opacity:.6">{{ fDescCount }}</p>
+          </div>
+          <div class="card" style="padding:24px;gap:16px">
+            <p class="card-kicker" style="margin:0">Prix et stock</p>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+              <div class="field"><label>Prix (DH)</label><input class="input" value="{{ fPrice }}" onChange="{{ onFPrice }}" placeholder="249"></div>
+              <div class="field"><label>Prix barré (DH)</label><input class="input" value="{{ fCompare }}" onChange="{{ onFCompare }}" placeholder="299"></div>
+              <div class="field"><label>Stock</label><input class="input" value="{{ fStock }}" onChange="{{ onFStock }}" placeholder="20"></div>
+            </div>
+            <p style="margin:0;font-size:13px;opacity:.75">{{ fMarginLabel }}</p>
+          </div>
+          <div class="card" style="padding:24px;gap:16px">
+            <p class="card-kicker" style="margin:0">Déclinaisons</p>
+            <p style="margin:0;font-size:13px;opacity:.72">Deux options maximum, séparées par des virgules. Chaque combinaison reçoit sa propre référence et son stock.</p>
+            <div style="display:grid;grid-template-columns:200px 1fr;gap:16px">
+              <div class="field"><label>Option 1</label><input class="input" value="{{ vOpt1Name }}" onChange="{{ onVOpt1Name }}" placeholder="Couleur"></div>
+              <div class="field"><label>Valeurs</label><input class="input" value="{{ vOpt1Vals }}" onChange="{{ onVOpt1Vals }}" placeholder="Noir, Sable, Vert olive"></div>
+              <div class="field"><label>Option 2</label><input class="input" value="{{ vOpt2Name }}" onChange="{{ onVOpt2Name }}" placeholder="Taille"></div>
+              <div class="field"><label>Valeurs</label><input class="input" value="{{ vOpt2Vals }}" onChange="{{ onVOpt2Vals }}" placeholder="S, M, L"></div>
+            </div>
+            <sc-if value="{{ hasCombos }}">
+              <table class="table">
+                <thead><tr><th>Déclinaison</th><th>Référence</th><th>Prix</th><th>Stock</th></tr></thead>
+                <tbody>
+                  <sc-for list="{{ combos }}" as="c" hint-placeholder-count="3">
+                    <tr>
+                      <td>{{ c.label }}</td>
+                      <td style="opacity:.7">{{ c.sku }}</td>
+                      <td>{{ c.priceLabel }}</td>
+                      <td style="width:110px"><input class="input" value="{{ c.stock }}" onChange="{{ c.onStock }}" placeholder="0" style="min-height:32px"></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <p style="margin:0;font-size:12px;opacity:.6">{{ combosLabel }}</p>
+            </sc-if>
+            <sc-if value="{{ noCombos }}">
+              <p style="margin:0;font-size:13px;opacity:.6">Aucune déclinaison : le produit sera vendu en version unique avec le stock indiqué plus haut.</p>
+            </sc-if>
+          </div>
+          <div class="card" style="padding:24px;gap:14px">
+            <p class="card-kicker" style="margin:0">Images · 4 maximum</p>
+            <div style="display:flex;gap:14px;flex-wrap:wrap">
+              <div class="ph" style="width:120px;height:120px;border-radius:24px">image principale<br>800 × 800</div>
+              <div class="ph" style="width:120px;height:120px;border-radius:24px">vue 2</div>
+              <div class="ph" style="width:120px;height:120px;border-radius:24px">vue 3</div>
+              <div class="ph" style="width:120px;height:120px;border-radius:24px">vue 4</div>
+            </div>
+            <p style="margin:0;font-size:12px;opacity:.6">JPG ou PNG, 2 Mo max, carré de préférence. La première image sert de vignette.</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;position:sticky;top:24px">
+          <div class="card" style="padding:22px;gap:14px">
+            <p class="card-kicker" style="margin:0">Publication</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <sc-for list="{{ statusChoices }}" as="c" hint-placeholder-count="2">
+                <button class="btn" onClick="{{ c.on }}" style="{{ c.style }}">{{ c.label }}</button>
+              </sc-for>
+            </div>
+            <label class="radio"><input type="checkbox" checked="{{ fFeatured }}" onChange="{{ onFFeatured }}"><span class="dot"></span>Mettre en avant dans la boutique</label>
+            <p style="margin:0;font-size:12px;opacity:.6">{{ fStatusHint }}</p>
+          </div>
+          <div class="card" style="padding:22px;gap:10px">
+            <p class="card-kicker" style="margin:0">Aperçu client</p>
+            <div class="ph" style="height:130px;border-radius:20px">photo produit</div>
+            <p style="margin:0;font-family:var(--font-heading);font-size:16px">{{ fPreviewName }}</p>
+            <p style="margin:0;font-size:15px;color:var(--color-accent-700)">{{ fPreviewPrice }}</p>
+            <p style="margin:0;font-size:12px;opacity:.6">{{ fPreviewStock }}</p>
+          </div>
+          <button class="btn btn-primary btn-block" onClick="{{ saveProduct }}" style="padding:14px;font-size:15px;margin:0">{{ fSaveLabel }}</button>
+          <button class="btn btn-secondary btn-block" onClick="{{ cancelProduct }}" style="margin:0">Annuler</button>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tabCommandes }}">
+      <h1 style="margin:0 0 22px;font-size:34px">Commandes</h1>
+      <table class="table">
+        <thead><tr><th>Commande</th><th>Client</th><th>Articles</th><th>Total</th><th>Statut</th><th>Faire avancer</th></tr></thead>
+        <tbody>
+          <sc-for list="{{ sellerOrders }}" as="o" hint-placeholder-count="4">
+            <tr>
+              <td>{{ o.number }}</td><td>{{ o.customer }}</td><td style="opacity:.7">{{ o.items }}</td><td>{{ o.totalLabel }}</td>
+              <td><span class="tag {{ o.tagClass }}">{{ o.status }}</span></td>
+              <td><button class="btn btn-secondary" onClick="{{ o.advance }}" style="font-size:12px;padding:5px 14px">{{ o.nextLabel }}</button></td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </sc-if>
+    <sc-if value="{{ tabAvis }}">
+      <h1 style="margin:0 0 22px;font-size:34px">Avis</h1>
+      <div style="display:flex;flex-direction:column;gap:14px;max-width:720px">
+        <sc-for list="{{ reviews }}" as="r" hint-placeholder-count="2">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="card-title" style="font-size:15px">{{ r.author }}</span><span class="tag tag-accent-2">{{ r.stars }}</span></div>
+            <p style="font-size:14px;opacity:.8;margin:0">{{ r.text }}</p>
+            <input class="input" placeholder="Répondre publiquement…">
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tabAnalytique }}">
+      <h1 style="margin:0 0 22px;font-size:34px">Analytique</h1>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
+        <sc-for list="{{ analytics }}" as="a" hint-placeholder-count="6">
+          <div class="card" style="padding:18px 20px;gap:4px"><p class="card-kicker" style="margin:0">{{ a.label }}</p><p style="font-family:var(--font-heading);font-size:27px;margin:0">{{ a.value }}</p><p style="margin:0;font-size:12px;opacity:.6">{{ a.note }}</p></div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </section>
+</main>
+</sc-if>
+
+<sc-if value="{{ isAdmin }}">
+<main style="display:grid;grid-template-columns:236px 1fr;min-height:calc(100vh - 66px)">
+  <aside style="padding:26px 20px;box-shadow:1px 0 0 var(--color-divider)">
+    <p class="card-kicker" style="margin:0 0 4px">Administration</p>
+    <p style="font-family:var(--font-heading);font-size:18px;margin:0 0 20px">Qissariaty</p>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <sc-for list="{{ adminTabs }}" as="t" hint-placeholder-count="5">
+        <button onClick="{{ t.on }}" style="{{ t.style }}">{{ t.label }}</button>
+      </sc-for>
+    </div>
+  </aside>
+  <section style="padding:32px 40px 90px">
+    <sc-if value="{{ aTabApercu }}" hint-placeholder-val="{{ true }}">
+      <h1 style="margin:0 0 26px;font-size:34px">Aperçu de la plateforme</h1>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:32px">
+        <sc-for list="{{ adminKpis }}" as="k" hint-placeholder-count="8">
+          <div class="card" style="padding:18px 20px;gap:4px"><p class="card-kicker" style="margin:0">{{ k.label }}</p><p style="font-family:var(--font-heading);font-size:28px;margin:0">{{ k.value }}</p><p style="margin:0;font-size:12px;opacity:.6">{{ k.note }}</p></div>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div class="card" style="padding:22px">
+          <p class="card-kicker" style="margin:0">Commandes par semaine</p>
+          <div style="display:flex;align-items:flex-end;gap:6px;height:150px;margin-top:12px">
+            <div style="flex:1;height:42%;background:var(--color-accent-2-300);border-radius:8px 8px 3px 3px"></div>
+            <div style="flex:1;height:55%;background:var(--color-accent-2-300);border-radius:8px 8px 3px 3px"></div>
+            <div style="flex:1;height:48%;background:var(--color-accent-2-400);border-radius:8px 8px 3px 3px"></div>
+            <div style="flex:1;height:64%;background:var(--color-accent-2-400);border-radius:8px 8px 3px 3px"></div>
+            <div style="flex:1;height:72%;background:var(--color-accent-2-500);border-radius:8px 8px 3px 3px"></div>
+            <div style="flex:1;height:69%;background:var(--color-accent-2-500);border-radius:8px 8px 3px 3px"></div>
+            <div style="flex:1;height:85%;background:var(--color-accent-2-600);border-radius:8px 8px 3px 3px"></div>
+            <div style="flex:1;height:100%;background:var(--color-accent-2-600);border-radius:8px 8px 3px 3px"></div>
+          </div>
+        </div>
+        <div class="card" style="padding:22px">
+          <p class="card-kicker" style="margin:0">Marchés les plus visités</p>
+          <sc-for list="{{ topMarkets }}" as="t" hint-placeholder-count="4">
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:9px 0;box-shadow:0 1px 0 var(--color-divider)"><span>{{ t.name }}</span><span style="opacity:.65">{{ t.visits }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ aTabModeration }}">
+      <h1 style="margin:0 0 8px;font-size:34px">Modération</h1>
+      <p style="font-size:14px;opacity:.68;margin:0 0 24px">{{ pendingLabel }}</p>
+      <div style="display:flex;flex-direction:column;gap:14px;max-width:820px">
+        <sc-for list="{{ pending }}" as="p" hint-placeholder-count="3">
+          <div class="card" style="flex-direction:row;align-items:center;gap:18px;padding:18px 22px">
+            <div class="ph" style="width:64px;height:64px;border-radius:18px;flex:none">img</div>
+            <div style="flex:1">
+              <p class="card-kicker" style="margin:0">{{ p.kind }} · {{ p.date }}</p>
+              <p class="card-title" style="margin:2px 0 0;font-size:17px">{{ p.name }}</p>
+              <p style="margin:2px 0 0;font-size:12px;opacity:.65">{{ p.meta }}</p>
+            </div>
+            <button class="btn btn-secondary" onClick="{{ p.reject }}">Rejeter</button>
+            <button class="btn btn-primary" onClick="{{ p.approve }}">Approuver</button>
+          </div>
+        </sc-for>
+        <sc-if value="{{ pendingEmpty }}">
+          <div class="card" style="align-items:flex-start;padding:34px">
+            <p class="card-title" style="margin:0">File vide</p>
+            <p style="font-size:14px;opacity:.7;margin:0">Aucune boutique ni demande de marché en attente. Les décisions sont journalisées dans l'audit.</p>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+    <sc-if value="{{ aTabMarches }}">
+      <h1 style="margin:0 0 22px;font-size:34px">Marchés</h1>
+      <table class="table">
+        <thead><tr><th>Marché</th><th>Ville</th><th>Boutiques</th><th>Note</th><th>Statut</th><th>Actions</th></tr></thead>
+        <tbody>
+          <sc-for list="{{ adminMarkets }}" as="m" hint-placeholder-count="6">
+            <tr>
+              <td>{{ m.name }}</td><td style="opacity:.7">{{ m.city }}</td><td>{{ m.stores }}</td><td>{{ m.rating }}</td>
+              <td><span class="tag tag-accent-2">Publié</span></td>
+              <td><span style="display:flex;gap:4px"><button class="btn btn-ghost" onClick="{{ m.open }}" style="font-size:12px">Voir</button><button class="btn btn-ghost" onClick="{{ m.feature }}" style="font-size:12px">{{ m.featureLabel }}</button></span></td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </sc-if>
+    <sc-if value="{{ aTabUtilisateurs }}">
+      <h1 style="margin:0 0 22px;font-size:34px">Utilisateurs</h1>
+      <table class="table">
+        <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Inscription</th><th>Statut</th></tr></thead>
+        <tbody>
+          <sc-for list="{{ adminUsers }}" as="u" hint-placeholder-count="6">
+            <tr><td>{{ u.name }}</td><td style="opacity:.7">{{ u.email }}</td><td><span class="tag tag-neutral">{{ u.role }}</span></td><td style="opacity:.7">{{ u.date }}</td><td><span class="tag tag-accent-2">Actif</span></td></tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </sc-if>
+  </section>
+</main>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:940},&quot;mapLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Colonne + carte&quot;,&quot;Carte plein écran&quot;],&quot;default&quot;:&quot;Colonne + carte&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Variantes&quot;},&quot;marketLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Contenu + panneau latéral&quot;,&quot;Éditorial pleine largeur&quot;],&quot;default&quot;:&quot;Contenu + panneau latéral&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Variantes&quot;}}">
+class Component extends DCLogic {
+  mapRef = React.createRef();
+
+  MARKETS = [
+    {id:'derb-omar',name:'Derb Omar',city:'Casablanca',lat:33.5928,lng:-7.6100,stores:214,rating:4.5,reviews:1284,dist:1.2,cats:['Électronique','Textile','Maison'],address:'Bd Mohammed V, quartier Derb Omar',phone:'+212 522 30 14 08',hours:'09:00 – 20:00',coords:'33.5928, -7.6100',desc:"Le cœur commerçant de Casablanca : des centaines de grossistes et détaillants en électronique, textile, quincaillerie et équipement de maison, répartis sur une dizaine de rues."},
+    {id:'marche-central',name:'Marché Central',city:'Casablanca',lat:33.5966,lng:-7.6194,stores:86,rating:4.3,reviews:642,dist:2.4,cats:['Alimentation','Épices','Fleurs'],address:'Rue Chaouia, ancienne médina',phone:'+212 522 27 55 10',hours:'07:00 – 19:00',coords:'33.5966, -7.6194',desc:"Le marché historique de Casablanca : poissonniers, épiciers, fleuristes et marchands d'épices sous les arcades."},
+    {id:'souk-semmarine',name:'Souk Semmarine',city:'Marrakech',lat:31.6295,lng:-7.9887,stores:340,rating:4.7,reviews:2810,dist:238,cats:['Artisanat','Bijoux','Textile'],address:'Médina, près de Jemaa el-Fna',phone:'+212 524 44 12 90',hours:'09:00 – 21:00',coords:'31.6295, -7.9887',desc:"L'artère principale des souks de la médina : babouches, tapis, lanternes, bijoux et tissus, boutique après boutique."},
+    {id:'souk-el-had',name:'Souk El Had',city:'Agadir',lat:30.4202,lng:-9.5891,stores:1200,rating:4.4,reviews:1930,dist:508,cats:['Alimentation','Épices','Artisanat'],address:'Avenue Abderrahim Bouabid',phone:'+212 528 84 22 07',hours:'08:00 – 20:00',coords:'30.4202, -9.5891',desc:"L'un des plus grands marchés du Maroc, organisé en secteurs : produits frais, épices, artisanat et confection."},
+    {id:'souk-attarine',name:'Souk Attarine',city:'Fès',lat:34.0650,lng:-4.9740,stores:180,rating:4.6,reviews:988,dist:296,cats:['Épices','Artisanat','Cuir'],address:'Médina de Fès el-Bali',phone:'+212 535 63 41 22',hours:'09:00 – 19:00',coords:'34.0650, -4.9740',desc:"Le souk des épiciers de Fès : safran, cumin, ras el-hanout, cuir et cuivre travaillés sur place."},
+    {id:'bab-el-had',name:'Marché Bab El Had',city:'Rabat',lat:34.0170,lng:-6.8420,stores:120,rating:4.2,reviews:415,dist:88,cats:['Alimentation','Textile','Maison'],address:'Place Bab El Had, médina',phone:'+212 537 70 18 44',hours:'08:00 – 20:00',coords:'34.0170, -6.8420',desc:"Marché de quartier très fréquenté aux portes de la médina de Rabat : alimentation, confection et articles de maison."}
+  ];
+
+  STORES = [
+    {id:'electro-atlas',name:'Électro Atlas',market:'derb-omar',cat:'Électronique',rating:4.6,reviews:214,products:128,cats:['Audio','Téléphones','Petit électroménager'],address:'12 rue Allal Ben Abdallah, Derb Omar',phone:'+212 661 44 20 11',email:'contact@electro-atlas.ma',hours:'09:30 – 19:30',desc:"Revendeur audio et petit électroménager installé à Derb Omar depuis 1998. Garantie 12 mois sur l'ensemble du catalogue."},
+    {id:'maison-zellige',name:'Maison Zellige',market:'derb-omar',cat:'Maison',rating:4.8,reviews:96,products:74,cats:['Luminaires','Cuivre','Céramique'],address:'4 rue Tahar Sebti, Derb Omar',phone:'+212 662 18 77 03',email:'bonjour@maisonzellige.ma',hours:'10:00 – 19:00',desc:"Luminaires, plateaux et céramique fabriqués par des artisans de Fès et Safi."},
+    {id:'tissus-bennani',name:'Tissus Bennani',market:'derb-omar',cat:'Textile',rating:4.4,reviews:132,products:96,cats:['Tissus','Confection'],address:'27 rue Ibn Batouta, Derb Omar',phone:'+212 663 55 12 90',email:'ventes@tissusbennani.ma',hours:'09:00 – 19:00',desc:"Grossiste en tissus au mètre : coton, lin, satin et broderies, au détail comme en gros."},
+    {id:'quincaillerie-chraibi',name:'Quincaillerie Chraibi',market:'derb-omar',cat:'Construction',rating:4.1,reviews:78,products:210,cats:['Outillage','Plomberie'],address:'9 bd Zerktouni, Derb Omar',phone:'+212 660 22 41 05',email:'chraibi@quincaillerie.ma',hours:'08:30 – 19:00',desc:"Outillage, plomberie et fournitures de chantier pour professionnels et particuliers."},
+    {id:'bijoux-kasbah',name:'Bijoux Kasbah',market:'souk-semmarine',cat:'Bijoux',rating:4.7,reviews:301,products:150,cats:['Argent','Ambre'],address:'Souk Semmarine 41, Marrakech',phone:'+212 664 90 33 12',email:'kasbah@bijoux.ma',hours:'09:00 – 21:00',desc:"Bijoux berbères en argent, corail et ambre, sertis dans l'atelier du souk."},
+    {id:'epices-rif',name:'Épices du Rif',market:'marche-central',cat:'Alimentation',rating:4.5,reviews:187,products:64,cats:['Épices','Thé'],address:'Stand 18, Marché Central',phone:'+212 665 11 08 76',email:'rif@epices.ma',hours:'07:30 – 18:30',desc:"Épices entières et moulues, thés et fruits secs, pesés et emballés à la commande."}
+  ];
+
+  PRODUCTS = [
+    {id:'casque-anc',store:'electro-atlas',name:'Casque sans fil à réduction de bruit',cat:'Audio',price:349,compare:499,stock:24,sku:'EA-CAS-349',weight:'280 g',desc:"Casque circum-auriculaire Bluetooth 5.3, réduction de bruit active, 38 h d'autonomie, étui de transport rigide inclus."},
+    {id:'enceinte-portable',store:'electro-atlas',name:'Enceinte portable étanche',cat:'Audio',price:279,compare:349,stock:12,sku:'EA-ENC-279',weight:'640 g',desc:"Enceinte Bluetooth IPX7, 20 h d'autonomie, appairage stéréo."},
+    {id:'chargeur-65w',store:'electro-atlas',name:'Chargeur rapide 65 W',cat:'Téléphones',price:149,compare:199,stock:60,sku:'EA-CHR-149',weight:'120 g',desc:"Chargeur GaN 65 W, deux ports USB-C et un USB-A, câble tressé 1,5 m."},
+    {id:'montre-connectee',store:'electro-atlas',name:'Montre connectée sport',cat:'Téléphones',price:899,compare:1099,stock:8,sku:'EA-MON-899',weight:'48 g',desc:"Écran AMOLED 1,4 pouce, GPS, cardio, autonomie 10 jours."},
+    {id:'lampe-zellige',store:'maison-zellige',name:'Lampe en zellige émaillé',cat:'Luminaires',price:480,compare:620,stock:6,sku:'MZ-LMP-480',weight:'2,1 kg',desc:"Lampe de table montée sur base en bois de cèdre, abat-jour en zellige émaillé de Fès. Pièce unique."},
+    {id:'plateau-cuivre',store:'maison-zellige',name:'Plateau en cuivre martelé',cat:'Cuivre',price:320,compare:410,stock:14,sku:'MZ-PLT-320',weight:'1,4 kg',desc:"Plateau de service 45 cm en cuivre martelé à la main, finition brossée."},
+    {id:'tapis-kilim',store:'maison-zellige',name:'Kilim tissé 200 × 140',cat:'Céramique',price:1450,compare:1800,stock:3,sku:'MZ-TAP-1450',weight:'4,8 kg',desc:"Kilim en laine tissé dans le Moyen Atlas, motifs géométriques teints naturellement."},
+    {id:'lin-metre',store:'tissus-bennani',name:'Lin lavé au mètre',cat:'Tissus',price:120,compare:150,stock:200,sku:'TB-LIN-120',weight:'240 g/m',desc:"Lin lavé 145 cm de laisse, vendu au mètre linéaire, 12 coloris disponibles."},
+    {id:'babouches-cuir',store:'bijoux-kasbah',name:'Babouches en cuir cousu main',cat:'Argent',price:240,compare:300,stock:30,sku:'BK-BAB-240',weight:'420 g',desc:"Babouches en cuir de chèvre tanné à Fès, semelle cousue main."},
+    {id:'safran-1g',store:'epices-rif',name:'Safran de Taliouine · 1 g',cat:'Épices',price:95,compare:130,stock:40,sku:'ER-SAF-095',weight:'1 g',desc:"Safran pur en pistils, récolte de Taliouine, boîte scellée d'un gramme."}
+  ];
+
+  state = {
+    screen:'home', cartOpen:false, toast:'',
+    query:'', city:'Toutes', cat:'Toutes', dist:600,
+    selected:'derb-omar', market:'derb-omar', store:'electro-atlas', product:'casque-anc',
+    marketQuery:'', marketCat:'Toutes', storeQuery:'', sort:'Pertinence', qty:1,
+    favs:{}, variant:{},
+    cart:[{p:'casque-anc',q:1,v:'Noir',price:349},{p:'chargeur-65w',q:2,v:'',price:149},{p:'lampe-zellige',q:1,v:'Moyen · 30 cm / Laiton',price:640}],
+    vOpt1Name:'Couleur', vOpt1Vals:'Noir, Sable, Vert olive', vOpt2Name:'', vOpt2Vals:'', vStock:{},
+    checkoutStep:1, pay:'carte', sellerStep:1, sellerTab:'apercu', adminTab:'moderation',
+    sellerPick:'derb-omar', featured:{'souk-semmarine':true},
+    hidden:{}, unpub:{'montre-connectee':true},
+    created:[], edits:{}, editId:null,
+    fName:'', fCat:'', fSku:'', fDesc:'', fPrice:'', fCompare:'', fStock:'', fStatus:'Publier', fFeatured:false,
+    subStatus:{'electro-atlas':2,'maison-zellige':1},
+    orders:[
+      {number:'QIS-24817', customer:'Salma E.', items:'Casque ANC × 1, Chargeur 65 W × 2', total:647, step:1},
+      {number:'QIS-24802', customer:'Younes R.', items:'Enceinte portable × 1', total:279, step:3},
+      {number:'QIS-24788', customer:'Hafsa M.', items:'Montre connectée × 1', total:899, step:5},
+      {number:'QIS-24751', customer:'Omar B.', items:'Chargeur 65 W × 1', total:149, step:6}
+    ],
+    pending:[
+      {id:'p1', kind:'Boutique', name:'Cuir Medina', meta:'Souk Semmarine, Marrakech · RC 210884 · propriétaire Amine Ouhbi', date:'23 août'},
+      {id:'p2', kind:'Demande de marché', name:'Souk Bab Doukkala', meta:'Marrakech · soumis par Fatima Z. · 31.6320, -7.9950', date:'22 août'},
+      {id:'p3', kind:'Boutique', name:'Épices Sahara', meta:'Souk El Had, Agadir · RC 097112 · propriétaire Rachid L.', date:'21 août'}
+    ]
+  };
+
+  STATUSES = ['en attente','confirmée','en préparation','prête','expédiée','livrée'];
+
+  VARIANTS = {
+    'casque-anc':[{name:'Couleur',values:[{label:'Noir',delta:0,stock:12},{label:'Sable',delta:0,stock:8},{label:'Vert olive',delta:20,stock:4}]}],
+    'lampe-zellige':[
+      {name:'Taille',values:[{label:'Petit · 22 cm',delta:0,stock:3},{label:'Moyen · 30 cm',delta:120,stock:2},{label:'Grand · 40 cm',delta:260,stock:1}]},
+      {name:'Finition',values:[{label:'Cuivre',delta:0,stock:6},{label:'Laiton',delta:40,stock:4}]}
+    ],
+    'lin-metre':[{name:'Coloris',values:[{label:'Écru',delta:0,stock:80},{label:'Terre',delta:0,stock:60},{label:'Sauge',delta:10,stock:40}]}],
+    'babouches-cuir':[{name:'Pointure',values:[{label:'38',delta:0,stock:4},{label:'39',delta:0,stock:7},{label:'40',delta:0,stock:9},{label:'41',delta:0,stock:6},{label:'42',delta:0,stock:2}]}],
+    'montre-connectee':[{name:'Bracelet',values:[{label:'Silicone',delta:0,stock:5},{label:'Cuir',delta:90,stock:3}]}]
+  };
+
+  variantsFor = (id) => this.VARIANTS[id] || [];
+  chosenFor = (id) => this.variantsFor(id).map(g => {
+    const picked = this.state.variant[id + '|' + g.name];
+    return g.values.find(v => v.label === picked) || g.values[0];
+  });
+
+  fmt = (n) => n.toLocaleString('fr-FR') + ' DH';
+  m = (id) => this.MARKETS.find(x => x.id === id);
+  s = (id) => this.STORES.find(x => x.id === id);
+  p = (id) => this.PRODUCTS.find(x => x.id === id);
+  go = (screen) => () => { this.setState({screen, cartOpen:false}); window.scrollTo(0,0); };
+  flash = (msg) => { clearTimeout(this._t); this.setState({toast:msg}); this._t = setTimeout(() => this.setState({toast:''}), 2200); };
+
+  chipStyle = (on) => on
+    ? 'font-size:12px;padding:6px 14px;background:var(--color-accent);color:var(--color-bg);border:1px solid var(--color-accent)'
+    : 'font-size:12px;padding:6px 14px;border:1px solid var(--color-divider);background:transparent;color:var(--color-text)';
+
+  addToCart = (id, q, v, price) => {
+    const label = v || '';
+    const unit = price != null ? price : this.p(id).price;
+    this.setState(st => {
+      const cart = st.cart.slice();
+      const i = cart.findIndex(c => c.p === id && (c.v || '') === label);
+      if (i >= 0) cart[i] = {p:id, v:label, price:unit, q:cart[i].q + q}; else cart.push({p:id, v:label, price:unit, q});
+      return {cart};
+    });
+    this.flash(this.p(id).name + (label ? ' · ' + label : '') + ' ajouté au panier');
+  };
+
+  startEdit = (o) => {
+    this.setState({
+      sellerTab:'nouveau', editId:o.id,
+      fName:o.name || '', fCat:o.cat || '', fSku:o.sku || '', fDesc:o.desc || '',
+      fPrice:String(o.price || ''), fCompare:String(o.compare || ''), fStock:String(o.stock || ''),
+      fStatus:o.pub ? 'Publier' : 'Brouillon'
+    });
+    window.scrollTo(0,0);
+  };
+
+  resetForm = () => this.setState({
+    sellerTab:'produits', editId:null,
+    fName:'', fCat:'', fSku:'', fDesc:'', fPrice:'', fCompare:'', fStock:'', fFeatured:false
+  });
+
+  componentDidMount() { this.syncMap(); }
+  componentDidUpdate() { this.syncMap(); }
+  componentWillUnmount() { clearTimeout(this._t); if (this._map) { this._map.remove(); this._map = null; } }
+
+  syncMap() {
+    const el = this.mapRef.current;
+    if (this.state.screen !== 'map') { if (this._map) { this._map.remove(); this._map = null; } return; }
+    if (!el) return;
+    if (!window.L) { clearTimeout(this._lt); this._lt = setTimeout(() => this.syncMap(), 120); return; }
+    const L = window.L;
+    if (!this._map) {
+      this._map = L.map(el, {zoomControl:true, scrollWheelZoom:true}).setView([32.2, -7.4], 6);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap contributors', maxZoom:19}).addTo(this._map);
+      this._layer = L.layerGroup().addTo(this._map);
+    }
+    const list = this.visibleMarkets();
+    const key = list.map(x => x.id).join(',') + '|' + this.state.selected;
+    if (key === this._key) return;
+    this._key = key;
+    this._layer.clearLayers();
+    list.forEach(mk => {
+      const on = mk.id === this.state.selected;
+      const mark = L.circleMarker([mk.lat, mk.lng], {
+        radius: on ? 15 : 10, color:'#8c491a', weight: on ? 3 : 2,
+        fillColor: on ? '#c67139' : '#f6a06b', fillOpacity: .95
+      }).addTo(this._layer);
+      mark.bindTooltip(mk.name + ' · ' + mk.stores + ' boutiques', {direction:'top'});
+      mark.on('click', () => this.setState({selected:mk.id}));
+    });
+    if (list.length) {
+      const b = window.L.latLngBounds(list.map(x => [x.lat, x.lng])).pad(.35);
+      this._map.fitBounds(b, {animate:true});
+    }
+  }
+
+  visibleMarkets() {
+    const {city, cat, dist, query} = this.state;
+    const q = query.trim().toLowerCase();
+    return this.MARKETS.filter(mk =>
+      (city === 'Toutes' || mk.city === city) &&
+      (cat === 'Toutes' || mk.cats.includes(cat)) &&
+      mk.dist <= dist &&
+      (q.length < 3 || mk.name.toLowerCase().includes(q) || mk.city.toLowerCase().includes(q) || mk.cats.join(' ').toLowerCase().includes(q))
+    );
+  }
+
+  marketRow = (mk, extra) => Object.assign({}, mk, {
+    storesLabel: mk.stores.toLocaleString('fr-FR') + ' boutiques',
+    distLabel: mk.dist < 10 ? mk.dist.toFixed(1) + ' km' : Math.round(mk.dist) + ' km',
+    open: () => { this.setState({market:mk.id, screen:'market', marketQuery:'', marketCat:'Toutes'}); window.scrollTo(0,0); },
+    select: () => this.setState({selected:mk.id}),
+    rowStyle: 'flex-direction:row;padding:12px 14px;' + (this.state.selected === mk.id ? 'box-shadow:inset 0 0 0 2px var(--color-accent)' : ''),
+    railStyle: 'width:290px;flex:none;padding:14px 16px;gap:10px;' + (this.state.selected === mk.id ? 'box-shadow:inset 0 0 0 2px var(--color-accent),var(--shadow-md)' : '')
+  }, extra);
+
+  productRow = (pr) => {
+    const st = this.s(pr.store);
+    return Object.assign({}, pr, {
+      storeName: st.name,
+      priceLabel: this.fmt(pr.price),
+      compareLabel: this.fmt(pr.compare),
+      stockLabel: pr.stock > 0 ? 'En stock · ' + pr.stock + ' unités' : 'Épuisé',
+      open: () => { this.setState({product:pr.id, screen:'product', qty:1}); window.scrollTo(0,0); },
+      add: () => this.addToCart(pr.id, 1)
+    });
+  };
+
+  renderVals() {
+    const st = this.state, S = st.screen;
+    const market = this.m(st.market), store = this.s(st.store), product = this.p(st.product);
+    const pStore = this.s(product.store), pMarket = this.m(pStore.market);
+    const sMarket = this.m(store.market);
+    const cities = ['Toutes','Casablanca','Marrakech','Rabat','Fès','Agadir'];
+    const cats = ['Toutes','Électronique','Textile','Maison','Alimentation','Artisanat','Épices','Bijoux'];
+    const visible = this.visibleMarkets();
+    const sel = this.m(st.selected);
+
+    const q = st.query.trim().toLowerCase();
+    const hit = (t) => q.length < 2 || t.toLowerCase().includes(q);
+    const searchProducts = this.PRODUCTS.filter(p => hit(p.name) || hit(p.cat)).slice(0,4).map(this.productRow);
+    const searchStores = this.STORES.filter(s => hit(s.name) || hit(s.cat)).slice(0,3);
+    const searchMarkets = this.MARKETS.filter(m => hit(m.name) || hit(m.city)).slice(0,3);
+    const searchGroups = [
+      {kind:'Produits', items: searchProducts.map(p => ({name:p.name, meta:p.storeName + ' · ' + p.cat, right:p.priceLabel, open:p.open}))},
+      {kind:'Boutiques', items: searchStores.map(s => ({name:s.name, meta:this.m(s.market).name + ' · ' + s.cat, right:'Note ' + s.rating, open:() => { this.setState({store:s.id, screen:'store'}); window.scrollTo(0,0); }}))},
+      {kind:'Marchés', items: searchMarkets.map(m => ({name:m.name, meta:m.city + ' · ' + m.cats.join(', '), right:m.stores + ' boutiques', open:() => { this.setState({market:m.id, screen:'market'}); window.scrollTo(0,0); }}))}
+    ].filter(g => g.items.length);
+    const searchTotal = searchGroups.reduce((n,g) => n + g.items.length, 0);
+
+    const mq = st.marketQuery.trim().toLowerCase();
+    const marketStores = this.STORES.filter(s => s.market === st.market
+      && (st.marketCat === 'Toutes' || s.cat === st.marketCat)
+      && (mq.length < 2 || s.name.toLowerCase().includes(mq) || s.cat.toLowerCase().includes(mq)
+          || this.PRODUCTS.some(p => p.store === s.id && p.name.toLowerCase().includes(mq))));
+    const marketCats = ['Toutes'].concat(Array.from(new Set(this.STORES.filter(s => s.market === st.market).map(s => s.cat))));
+
+    const sq = st.storeQuery.trim().toLowerCase();
+    let storeProducts = this.PRODUCTS.filter(p => p.store === st.store && (sq.length < 2 || p.name.toLowerCase().includes(sq)));
+    if (st.sort === 'Prix croissant') storeProducts = storeProducts.slice().sort((a,b) => a.price - b.price);
+    if (st.sort === 'Prix décroissant') storeProducts = storeProducts.slice().sort((a,b) => b.price - a.price);
+
+    const cartItems = st.cart.map(c => Object.assign({}, this.p(c.p), {
+      qty:c.q, variant:c.v || '', price: c.price != null ? c.price : this.p(c.p).price,
+      key:c.p + '|' + (c.v || ''),
+      label: this.p(c.p).name + (c.v ? ' · ' + c.v : '')
+    }));
+    const groupsMap = {};
+    cartItems.forEach(it => { (groupsMap[it.store] = groupsMap[it.store] || []).push(it); });
+    const cartGroups = Object.keys(groupsMap).map(sid => {
+      const stx = this.s(sid), items = groupsMap[sid];
+      const sub = items.reduce((n,i) => n + i.price * i.qty, 0);
+      return {
+        storeName: stx.name, marketName: this.m(stx.market).name, subtotalLabel: this.fmt(sub),
+        items: items.map(it => ({
+          name: it.label, qty: it.qty, priceLabel: this.fmt(it.price),
+          inc: () => this.addToCart(it.id, 1, it.variant, it.price),
+          dec: () => this.setState(s => ({cart: s.cart.map(c => (c.p + '|' + (c.v || '')) === it.key ? Object.assign({}, c, {q:Math.max(1, c.q - 1)}) : c)})),
+          remove: () => this.setState(s => ({cart: s.cart.filter(c => (c.p + '|' + (c.v || '')) !== it.key)}))
+        }))
+      };
+    });
+    const subtotal = cartItems.reduce((n,i) => n + i.price * i.qty, 0);
+    const shipping = cartGroups.length * 35;
+
+    const split = (s) => s.split(',').map(x => x.trim()).filter(Boolean);
+    const c1 = st.vOpt1Name.trim() ? split(st.vOpt1Vals) : [];
+    const c2 = st.vOpt2Name.trim() ? split(st.vOpt2Vals) : [];
+    const combos = c1.length && c2.length
+      ? c1.reduce((acc,a) => acc.concat(c2.map(b => a + ' / ' + b)), [])
+      : (c1.length ? c1 : c2);
+
+    const vGroups = this.variantsFor(product.id);
+    const vChosen = this.chosenFor(product.id);
+    const vLabel = vChosen.map(v => v.label).join(' / ');
+    const vPrice = product.price + vChosen.reduce((n,v) => n + v.delta, 0);
+    const vStock = vChosen.length ? Math.min.apply(null, vChosen.map(v => v.stock)) : product.stock;
+    const vCompare = Math.round(product.compare * vPrice / product.price);
+
+    const fav = (k) => !!st.favs[k];
+    const toggleFav = (k, label) => () => {
+      this.setState(s => ({favs: Object.assign({}, s.favs, {[k]: !s.favs[k]})}));
+      this.flash(st.favs[k] ? label + ' retiré des favoris' : label + ' ajouté aux favoris');
+    };
+
+    return {
+      isHome: S === 'home', isSearch: S === 'search',
+      isMapSplit: S === 'map' && (this.props.mapLayout || 'Colonne + carte') === 'Colonne + carte',
+      isMapImmersive: S === 'map' && this.props.mapLayout === 'Carte plein écran',
+      isMarketSidebar: S === 'market' && (this.props.marketLayout || 'Contenu + panneau latéral') === 'Contenu + panneau latéral',
+      isMarketEditorial: S === 'market' && this.props.marketLayout === 'Éditorial pleine largeur',
+      isStore: S === 'store', isProduct: S === 'product',
+      goHome: this.go('home'), goMap: this.go('map'), goSearch: this.go('search'),
+      goStore: this.go('store'), goSeller: this.go('seller-signup'), goOrder: this.go('order'),
+      goCart: this.go('cart'), goCheckout: () => { this.setState({screen:'checkout', cartOpen:false}); window.scrollTo(0,0); },
+      goMapFromCart: () => this.setState({screen:'map', cartOpen:false}),
+      query: st.query,
+      onQuery: (e) => this.setState({query:e.target.value}),
+      onSearchSubmit: (e) => { e.preventDefault(); this.setState({screen:'search'}); window.scrollTo(0,0); },
+      toggleCart: () => this.setState(s => ({cartOpen: !s.cartOpen})),
+      closeCart: () => this.setState({cartOpen:false}),
+      cartOpen: st.cartOpen, cartCount: cartItems.reduce((n,i) => n + i.qty, 0),
+      cartGroups, cartEmpty: cartItems.length === 0,
+      cartSubtotalLabel: this.fmt(subtotal), cartShippingLabel: this.fmt(shipping),
+      cartTotalLabel: this.fmt(subtotal + shipping),
+      cartStoreCount: cartGroups.length + (cartGroups.length > 1 ? ' boutiques' : ' boutique'),
+      toast: st.toast,
+
+      featuredMarkets: [this.m('derb-omar'), this.m('souk-semmarine'), this.m('souk-el-had')].map(m => this.marketRow(m)),
+      categories: ['Électronique','Textile','Maison','Alimentation','Artisanat','Épices','Bijoux','Cosmétiques'],
+      featuredProducts: ['lampe-zellige','casque-anc','safran-1g','babouches-cuir'].map(id => this.productRow(this.p(id))),
+
+      resultCountLabel: visible.length + ' marchés · ' + this.STORES.length + ' boutiques référencées',
+      cityChips: cities.map(c => ({label:c, style:this.chipStyle(st.city === c), on:() => this.setState({city:c})})),
+      catChips: cats.map(c => ({label:c, style:this.chipStyle(st.cat === c), on:() => this.setState({cat:c})})),
+      dist: st.dist, distLabel: st.dist >= 600 ? 'tout le Maroc' : 'moins de ' + st.dist + ' km',
+      onDist: (e) => this.setState({dist:Number(e.target.value)}),
+      useLocation: () => { this.setState({city:'Casablanca', dist:25}); this.flash('Position approximative : Casablanca'); },
+      filteredMarkets: visible.map(m => this.marketRow(m)),
+      mapRef: this.mapRef,
+      selectedMarket: this.marketRow(sel),
+      openSelected: () => { this.setState({market:st.selected, screen:'market'}); window.scrollTo(0,0); },
+      toggleFavMarket: toggleFav('m:' + st.selected, sel.name),
+      favMarketLabel: fav('m:' + st.selected) ? 'Favori ✓' : 'Enregistrer',
+
+      searchGroups, searchTotalLabel: searchTotal + ' résultats · produits, boutiques et marchés',
+      searchHeading: st.query.trim() ? 'Résultats pour « ' + st.query.trim() + ' »' : 'Explorer tout le catalogue',
+
+      market: Object.assign({}, market, {}),
+      marketQuery: st.marketQuery,
+      onMarketQuery: (e) => this.setState({marketQuery:e.target.value}),
+      marketCatChips: marketCats.map(c => ({label:c, style:this.chipStyle(st.marketCat === c), on:() => this.setState({marketCat:c})})),
+      marketStores: marketStores.map(s => Object.assign({}, s, {
+        productsLabel: s.products + ' produits',
+        open: () => { this.setState({store:s.id, screen:'store', storeQuery:''}); window.scrollTo(0,0); }
+      })),
+      marketStoresLabel: marketStores.length + ' boutiques dans ' + market.name,
+      marketEmpty: marketStores.length === 0,
+      resetMarketFilters: () => this.setState({marketQuery:'', marketCat:'Toutes'}),
+      nearbyMarkets: this.MARKETS.filter(m => m.id !== st.market).slice(0,3).map(m => this.marketRow(m)),
+      toggleFavMarketPage: toggleFav('m:' + st.market, market.name),
+      favMarketPageLabel: fav('m:' + st.market) ? 'Favori ✓' : 'Enregistrer ce marché',
+
+      store: Object.assign({}, store, {marketName: sMarket.name, city: sMarket.city}),
+      storeQuery: st.storeQuery,
+      onStoreQuery: (e) => this.setState({storeQuery:e.target.value}),
+      sortChips: ['Pertinence','Prix croissant','Prix décroissant'].map(c => ({label:c, style:this.chipStyle(st.sort === c), on:() => this.setState({sort:c})})),
+      storeProducts: storeProducts.map(this.productRow),
+      openStoreMarket: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({market:sMarket.id, screen:'market'}); window.scrollTo(0,0); },
+      toggleFavStore: toggleFav('s:' + st.store, store.name),
+      favStoreLabel: fav('s:' + st.store) ? 'Favori ✓' : 'Enregistrer',
+      reviews: [
+        {author:'Nadia B.', stars:'★★★★★', text:"Commande récupérée en boutique le lendemain, exactement le modèle annoncé.", reply:'Merci Nadia, à bientôt à Derb Omar.'},
+        {author:'Youssef T.', stars:'★★★★☆', text:"Bon rapport qualité-prix, l'emballage aurait pu être plus soigné.", reply:'Nous renforçons les emballages depuis mars.'}
+      ],
+
+      product: Object.assign({}, product, {
+        storeName: pStore.name, storeRating: pStore.rating, marketName: pMarket.name, city: pMarket.city,
+        priceLabel: this.fmt(vPrice), compareLabel: this.fmt(vCompare),
+        discountLabel: '−' + Math.round((1 - vPrice / vCompare) * 100) + ' %',
+        sku: product.sku + (vChosen.length ? '-' + vChosen.map(v => v.label.slice(0,2).toUpperCase()).join('') : ''),
+        stockLabel: vStock > 0
+          ? (vChosen.length ? vLabel + ' · ' : '') + vStock + ' en stock · expédié sous 48 h depuis ' + pMarket.city
+          : (vChosen.length ? vLabel + ' · épuisé' : 'Épuisé')
+      }),
+      hasVariants: vGroups.length > 0,
+      variantGroups: vGroups.map(g => {
+        const picked = (this.chosenFor(product.id)[vGroups.indexOf(g)] || {}).label;
+        return {
+          name: g.name, selected: picked,
+          values: g.values.map(v => ({
+            label: v.label + (v.stock === 0 ? ' · épuisé' : ''),
+            on: () => this.setState(s => ({variant: Object.assign({}, s.variant, {[product.id + '|' + g.name]: v.label}), qty:1})),
+            style: this.chipStyle(picked === v.label) + (v.stock === 0 ? ';opacity:.45' : '')
+          }))
+        };
+      }),
+      variantSummary: vChosen.length ? vLabel + ' · ' + this.fmt(vPrice) : '',
+      qty: st.qty,
+      incQty: () => this.setState(s => ({qty: Math.min(s.qty + 1, vStock)})),
+      decQty: () => this.setState(s => ({qty: Math.max(1, s.qty - 1)})),
+      addProduct: () => this.addToCart(product.id, st.qty, vLabel, vPrice),
+      buyNow: () => { this.addToCart(product.id, st.qty, vLabel, vPrice); this.setState({screen:'checkout'}); window.scrollTo(0,0); },
+      toggleFavProduct: toggleFav('p:' + product.id, product.name),
+      favProductLabel: fav('p:' + product.id) ? '♥' : '♡',
+      openProductStore: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({store:pStore.id, screen:'store', storeQuery:''}); window.scrollTo(0,0); },
+      openProductMarket: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({market:pMarket.id, screen:'market'}); window.scrollTo(0,0); },
+      relatedProducts: this.PRODUCTS.filter(p => p.id !== product.id && p.store === product.store).concat(this.PRODUCTS.filter(p => p.store !== product.store)).slice(0,4).map(this.productRow),
+
+      isCart: S === 'cart', isCheckout: S === 'checkout', isOrder: S === 'order',
+      isSellerSignup: S === 'seller-signup', isSeller: S === 'seller', isAdmin: S === 'admin',
+      orderNumber: 'QIS-24817',
+
+      checkoutSteps: ['1 · Livraison','2 · Paiement','3 · Confirmation'].map((label,i) => ({
+        label, style: st.checkoutStep === i + 1
+          ? 'background:var(--color-accent);color:var(--color-bg);font-size:12px;padding:6px 14px'
+          : 'background:var(--color-neutral-200);color:var(--color-neutral-700);font-size:12px;padding:6px 14px'
+      })),
+      isStep1: st.checkoutStep === 1, isStep2: st.checkoutStep === 2, isStep3: st.checkoutStep === 3,
+      nextStep: () => { this.setState({checkoutStep:2}); window.scrollTo(0,0); },
+      prevStep: () => this.setState({checkoutStep:1}),
+      placeOrder: () => { this.setState({checkoutStep:3}); window.scrollTo(0,0); this.flash('Commande QIS-24817 confirmée'); },
+      payMethods: [
+        {id:'carte', label:'Carte bancaire', hint:'Visa, Mastercard, CMI — débit à la confirmation'},
+        {id:'livraison', label:'Paiement à la livraison', hint:'En espèces au livreur, +15 DH de frais'},
+        {id:'retrait', label:'Retrait en boutique', hint:'Payez sur place, réservation valable 72 h'}
+      ].map(p => ({
+        label:p.label, hint:p.hint, on:() => this.setState({pay:p.id}),
+        style: 'padding:16px 18px;gap:4px;' + (st.pay === p.id ? 'box-shadow:inset 0 0 0 2px var(--color-accent)' : '')
+      })),
+      payCard: st.pay === 'carte',
+
+      subOrders: cartGroups.map((g,i) => {
+        const step = st.subStatus[Object.keys(groupsMap)[i]] || 1;
+        return {
+          storeName:g.storeName, marketName:g.marketName, statusLabel:this.STATUSES[step],
+          steps: ['Confirmée','Préparation','Prête','Expédiée','Livrée'].map((label,j) => ({
+            label, bar: 'height:6px;border-radius:999px;background:' + (j <= step - 1 ? 'var(--color-accent)' : 'var(--color-neutral-300)')
+          })),
+          items: g.items.map(it => Object.assign({}, it, {review: () => this.flash('Avis enregistré pour ' + it.name)}))
+        };
+      }),
+
+      sellerSteps: ['Compte','Boutique','Marché','Validation'].map((label,i) => ({
+        label: (i + 1) + ' · ' + label,
+        style: st.sellerStep === i + 1
+          ? 'background:var(--color-accent);color:var(--color-bg);font-size:12px;padding:6px 14px'
+          : 'background:var(--color-neutral-200);color:var(--color-neutral-700);font-size:12px;padding:6px 14px'
+      })),
+      sStep1: st.sellerStep === 1, sStep2: st.sellerStep === 2, sStep3: st.sellerStep === 3, sStep4: st.sellerStep === 4,
+      sellerCanBack: st.sellerStep > 1 && st.sellerStep < 4,
+      sellerCanNext: st.sellerStep < 4,
+      sellerNextLabel: st.sellerStep === 3 ? 'Envoyer pour validation' : 'Continuer',
+      sellerNext: () => { this.setState(s => ({sellerStep: s.sellerStep + 1})); window.scrollTo(0,0); },
+      sellerPrev: () => this.setState(s => ({sellerStep: s.sellerStep - 1})),
+      marketPicks: this.MARKETS.slice(0,4).map(mk => Object.assign({}, this.marketRow(mk), {
+        on: () => this.setState({sellerPick:mk.id}),
+        style: st.sellerPick === mk.id ? 'box-shadow:inset 0 0 0 2px var(--color-accent)' : ''
+      })),
+      requestMarket: () => this.flash('Demande de nouveau marché envoyée à la modération'),
+      goSellerDash: this.go('seller'),
+
+      sellerTabs: ['Aperçu','Produits','Commandes','Avis','Analytique'].map(label => {
+        const id = label.toLowerCase().replace('ç','c').replace('é','e').replace('û','u');
+        const on = st.sellerTab === id;
+        return {label, on: () => this.setState({sellerTab:id}),
+          style: 'text-align:left;border:0;border-radius:999px;padding:9px 16px;font-size:14px;background:' + (on ? 'var(--color-accent)' : 'transparent') + ';color:' + (on ? 'var(--color-bg)' : 'var(--color-text)')};
+      }),
+      tabApercu: st.sellerTab === 'apercu', tabProduits: st.sellerTab === 'produits',
+      tabCommandes: st.sellerTab === 'commandes', tabAvis: st.sellerTab === 'avis',
+      tabAnalytique: st.sellerTab === 'analytique',
+      sellerKpis: [
+        {label:'Ventes du mois', value:'48 720 DH', delta:'+18 % vs juillet'},
+        {label:'Commandes', value:'134', delta:'+22 commandes'},
+        {label:'Panier moyen', value:'364 DH', delta:'+4 %'},
+        {label:'Note boutique', value:'4,6', delta:'214 avis'}
+      ],
+      bestSellers: [
+        {name:'Chargeur rapide 65 W', sold:'62 vendus'},
+        {name:'Casque sans fil ANC', sold:'41 vendus'},
+        {name:'Enceinte portable', sold:'28 vendus'},
+        {name:'Montre connectée', sold:'9 vendus'}
+      ],
+      sellerProducts: st.created.filter(c => !st.hidden[c.id]).map(c => ({
+        name: c.name + (c.variants ? ' · ' + c.variants + ' déclinaisons' : ''),
+        sku:c.sku, stock:c.stock, priceLabel:this.fmt(c.price),
+        statusLabel: c.pub && !st.unpub[c.id] ? 'Publié' : 'Brouillon',
+        tagClass: c.pub && !st.unpub[c.id] ? 'tag-accent-2' : 'tag-neutral',
+        toggleLabel: c.pub && !st.unpub[c.id] ? 'Dépublier' : 'Publier',
+        toggle: () => this.setState(s => ({unpub: Object.assign({}, s.unpub, {[c.id]: !s.unpub[c.id]})})),
+        edit: () => this.startEdit({id:c.id, name:c.name, sku:c.sku, price:c.price, stock:c.stock, pub:c.pub && !st.unpub[c.id]}),
+        remove: () => { this.setState(s => ({hidden: Object.assign({}, s.hidden, {[c.id]:true})})); this.flash(c.name + ' supprimé (corbeille 30 jours)'); }
+      })).concat(this.PRODUCTS.filter(p => p.store === 'electro-atlas' && !st.hidden[p.id]).map(base => {
+        const p = Object.assign({}, base, st.edits[base.id] || {});
+        const pub = !st.unpub[p.id];
+        return {
+          name:p.name, sku:p.sku, stock:p.stock, priceLabel:this.fmt(p.price),
+          edit: () => this.startEdit({id:p.id, name:p.name, cat:p.cat, sku:p.sku, desc:p.desc, price:p.price, compare:p.compare, stock:p.stock, pub}),
+          statusLabel: pub ? 'Publié' : 'Brouillon',
+          tagClass: pub ? 'tag-accent-2' : 'tag-neutral',
+          toggleLabel: pub ? 'Dépublier' : 'Publier',
+          toggle: () => this.setState(s => ({unpub: Object.assign({}, s.unpub, {[p.id]: !s.unpub[p.id]})})),
+          remove: () => { this.setState(s => ({hidden: Object.assign({}, s.hidden, {[p.id]:true})})); this.flash(p.name + ' supprimé (corbeille 30 jours)'); }
+        };
+      })),
+      addProductRow: () => { this.setState({sellerTab:'nouveau'}); window.scrollTo(0,0); },
+      tabNouveau: st.sellerTab === 'nouveau',
+      fName: st.fName, fCat: st.fCat, fSku: st.fSku, fDesc: st.fDesc,
+      fPrice: st.fPrice, fCompare: st.fCompare, fStock: st.fStock, fFeatured: st.fFeatured,
+      onFName: (e) => this.setState({fName:e.target.value}),
+      onFCat: (e) => this.setState({fCat:e.target.value}),
+      onFSku: (e) => this.setState({fSku:e.target.value}),
+      onFDesc: (e) => this.setState({fDesc:e.target.value}),
+      onFPrice: (e) => this.setState({fPrice:e.target.value.replace(/[^0-9]/g,'')}),
+      onFCompare: (e) => this.setState({fCompare:e.target.value.replace(/[^0-9]/g,'')}),
+      onFStock: (e) => this.setState({fStock:e.target.value.replace(/[^0-9]/g,'')}),
+      onFFeatured: (e) => this.setState({fFeatured:e.target.checked}),
+      fDescCount: st.fDesc.length + ' / 600 caractères · une description complète améliore le référencement',
+      fMarginLabel: st.fPrice && st.fCompare && Number(st.fCompare) > Number(st.fPrice)
+        ? 'Remise affichée : −' + Math.round((1 - Number(st.fPrice) / Number(st.fCompare)) * 100) + ' % · économie de ' + this.fmt(Number(st.fCompare) - Number(st.fPrice))
+        : 'Renseignez un prix barré supérieur au prix pour afficher une remise.',
+      statusChoices: ['Publier','Brouillon'].map(c => ({label:c, style:this.chipStyle(st.fStatus === c), on:() => this.setState({fStatus:c})})),
+      fStatusHint: st.fStatus === 'Publier'
+        ? 'Visible sur la page boutique dès l\'enregistrement.'
+        : 'Conservé en brouillon : invisible pour les clients.',
+      fPreviewName: st.fName || 'Nom du produit',
+      fPreviewPrice: st.fPrice ? this.fmt(Number(st.fPrice)) : '— DH',
+      fPreviewStock: st.fStock ? 'En stock · ' + st.fStock + ' unités' : 'Stock non renseigné',
+      fSaveLabel: st.editId ? 'Enregistrer les modifications' : (st.fStatus === 'Publier' ? 'Publier le produit' : 'Enregistrer le brouillon'),
+      formTitle: st.editId ? 'Modifier le produit' : 'Nouveau produit',
+      formHint: st.editId
+        ? 'Électro Atlas · Derb Omar. Les modifications sont visibles immédiatement sur la fiche produit.'
+        : 'Électro Atlas · Derb Omar. Les produits publiés apparaissent immédiatement sur la page de la boutique.',
+      vOpt1Name: st.vOpt1Name, vOpt1Vals: st.vOpt1Vals, vOpt2Name: st.vOpt2Name, vOpt2Vals: st.vOpt2Vals,
+      onVOpt1Name:(e) => this.setState({vOpt1Name:e.target.value}),
+      onVOpt1Vals:(e) => this.setState({vOpt1Vals:e.target.value}),
+      onVOpt2Name:(e) => this.setState({vOpt2Name:e.target.value}),
+      onVOpt2Vals:(e) => this.setState({vOpt2Vals:e.target.value}),
+      hasCombos: combos.length > 0, noCombos: combos.length === 0,
+      combos: combos.map(label => ({
+        label,
+        sku: (st.fSku.trim() || 'EA-NEW') + '-' + label.split(' / ').map(x => x.slice(0,2).toUpperCase()).join(''),
+        priceLabel: st.fPrice ? this.fmt(Number(st.fPrice)) : '— DH',
+        stock: st.vStock[label] || '',
+        onStock:(e) => { const v = e.target.value.replace(/[^0-9]/g,''); this.setState(s => ({vStock: Object.assign({}, s.vStock, {[label]:v})})); }
+      })),
+      combosLabel: combos.length + ' déclinaisons · stock total ' + combos.reduce((n,l) => n + Number(st.vStock[l] || 0), 0) + ' unités',
+      cancelProduct: () => { this.resetForm(); window.scrollTo(0,0); },
+      saveProduct: () => {
+        if (!st.fName.trim() || !st.fPrice) { this.flash('Nom et prix sont obligatoires'); return; }
+        const stock = combos.length ? combos.reduce((n,l) => n + Number(st.vStock[l] || 0), 0) : Number(st.fStock || 0);
+        const pub = st.fStatus === 'Publier';
+        if (st.editId) {
+          const id = st.editId;
+          const patch = {name:st.fName.trim(), sku:st.fSku.trim(), price:Number(st.fPrice), stock, cat:st.fCat, desc:st.fDesc};
+          if (st.fCompare) patch.compare = Number(st.fCompare);
+          const isCreated = st.created.some(c => c.id === id);
+          this.setState(s => ({
+            created: isCreated ? s.created.map(c => c.id === id ? Object.assign({}, c, patch, {pub}) : c) : s.created,
+            edits: isCreated ? s.edits : Object.assign({}, s.edits, {[id]: Object.assign({}, s.edits[id], patch)}),
+            unpub: Object.assign({}, s.unpub, {[id]: !pub})
+          }));
+          this.resetForm();
+          window.scrollTo(0,0);
+          this.flash(patch.name + ' mis à jour');
+          return;
+        }
+        const item = {
+          id:'new-' + Date.now(), name:st.fName.trim(),
+          sku: st.fSku.trim() || 'EA-NEW-' + st.fPrice,
+          price: Number(st.fPrice), pub, stock, variants: combos.length
+        };
+        this.setState(s => ({created: s.created.concat([item])}));
+        this.resetForm();
+        window.scrollTo(0,0);
+        this.flash(item.name + (pub ? ' publié' : ' enregistré en brouillon'));
+      },
+      sellerOrders: st.orders.map((o,i) => ({
+        number:o.number, customer:o.customer, items:o.items, totalLabel:this.fmt(o.total),
+        status: this.STATUSES[o.step], tagClass: o.step >= 5 ? 'tag-accent-2' : 'tag-accent',
+        nextLabel: o.step >= 5 ? 'Terminée' : 'Passer à « ' + this.STATUSES[o.step + 1] + ' »',
+        advance: () => { if (o.step >= 5) return; this.setState(s => ({orders: s.orders.map((x,j) => j === i ? Object.assign({}, x, {step:x.step + 1}) : x)})); this.flash(o.number + ' → ' + this.STATUSES[o.step + 1]); }
+      })),
+      analytics: [
+        {label:'Vues boutique', value:'12 480', note:'30 derniers jours'},
+        {label:'Vues produits', value:'38 120', note:'30 derniers jours'},
+        {label:'Taux de conversion', value:'3,4 %', note:'+0,6 pt'},
+        {label:'Produits vendus', value:'286', note:'toutes catégories'},
+        {label:'Commandes annulées', value:'4', note:'2,9 % du total'},
+        {label:'Délai de préparation', value:'6 h', note:'médiane'}
+      ],
+
+      adminTabs: [['Aperçu','apercu'],['Modération','moderation'],['Marchés','marches'],['Utilisateurs','utilisateurs']].map(([label,id]) => {
+        const on = st.adminTab === id;
+        return {label, on: () => this.setState({adminTab:id}),
+          style: 'text-align:left;border:0;border-radius:999px;padding:9px 16px;font-size:14px;background:' + (on ? 'var(--color-accent)' : 'transparent') + ';color:' + (on ? 'var(--color-bg)' : 'var(--color-text)')};
+      }),
+      aTabApercu: st.adminTab === 'apercu', aTabModeration: st.adminTab === 'moderation',
+      aTabMarches: st.adminTab === 'marches', aTabUtilisateurs: st.adminTab === 'utilisateurs',
+      adminKpis: [
+        {label:'Utilisateurs', value:'18 412', note:'+312 cette semaine'},
+        {label:'Commerçants', value:'1 208', note:'+24 cette semaine'},
+        {label:'Marchés', value:'42', note:'6 villes'},
+        {label:'Boutiques', value:'4 140', note:'3 en attente'},
+        {label:'Produits', value:'61 380', note:'+1 240'},
+        {label:'Commandes', value:'9 874', note:'cumul'},
+        {label:'Volume d\'affaires', value:'3,1 M DH', note:'cumul'},
+        {label:'Litiges ouverts', value:'7', note:'à traiter'}
+      ],
+      topMarkets: [
+        {name:'Souk Semmarine', visits:'42 100 visites'},
+        {name:'Derb Omar', visits:'38 640 visites'},
+        {name:'Souk El Had', visits:'21 780 visites'},
+        {name:'Souk Attarine', visits:'14 250 visites'}
+      ],
+      pending: st.pending.map(p => ({
+        kind:p.kind, name:p.name, meta:p.meta, date:p.date,
+        approve: () => { this.setState(s => ({pending: s.pending.filter(x => x.id !== p.id)})); this.flash(p.name + ' approuvé et publié'); },
+        reject: () => { this.setState(s => ({pending: s.pending.filter(x => x.id !== p.id)})); this.flash(p.name + ' rejeté — motif demandé au vendeur'); }
+      })),
+      pendingEmpty: st.pending.length === 0,
+      pendingLabel: st.pending.length + ' éléments en attente de décision · file traitée sous 48 h',
+      adminMarkets: this.MARKETS.map(mk => Object.assign({}, this.marketRow(mk), {
+        featureLabel: st.featured[mk.id] ? 'Retirer de la vedette' : 'Mettre en vedette',
+        feature: () => { this.setState(s => ({featured: Object.assign({}, s.featured, {[mk.id]: !s.featured[mk.id]})})); this.flash(mk.name + (st.featured[mk.id] ? ' retiré de la vedette' : ' mis en vedette')); }
+      })),
+      adminUsers: [
+        {name:'Salma El Amrani', email:'salma@example.com', role:'Client', date:'12 août 2026'},
+        {name:'Karim Bennani', email:'karim@example.com', role:'Commerçant', date:'02 août 2026'},
+        {name:'Amine Ouhbi', email:'amine@example.com', role:'Commerçant', date:'23 août 2026'},
+        {name:'Fatima Zahra L.', email:'fatima@example.com', role:'Client', date:'19 août 2026'},
+        {name:'Hicham Daoudi', email:'hicham@example.com', role:'Admin', date:'04 janv. 2026'},
+        {name:'Younes Rachidi', email:'younes@example.com', role:'Client', date:'21 août 2026'}
+      ],
+
+      screenNav: [
+        ['Accueil','home'],['Carte','map'],['Recherche','search'],['Marché','market'],['Boutique','store'],
+        ['Produit','product'],['Panier','cart'],['Paiement','checkout'],['Commande','order'],
+        ['Devenir vendeur','seller-signup'],['Vendeur','seller'],['Admin','admin']
+      ].map(([label,id]) => ({
+        label, on: this.go(id),
+        style: 'font-size:11px;padding:5px 12px;' + (S === id
+          ? 'background:var(--color-accent);color:var(--color-bg)'
+          : 'background:transparent;color:var(--color-text)')
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
